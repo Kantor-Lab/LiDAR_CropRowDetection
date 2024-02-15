@@ -328,7 +328,7 @@ def publish_lines_callback():
                 # left_x1 = left_line_centroids[-1][0] - robot_position.x 
                 # left_y1 = left_line_centroids[-1][1] - robot_position.y
                 # left_y2 = left_line_centroids[0][1] - robot_position.y
-                left_x1 = -left_line_centroids[0][0] + robot_position.x 
+                left_x1 = -left_line_centroids[0][0] + robot_position.x + 1
                 print("left line centroids:", left_line_centroids[0][0])
                 print("left x1", left_x1)
                 left_y1 = -left_line_centroids[-1][1] + robot_position.y
@@ -360,7 +360,7 @@ def publish_lines_callback():
                 # right_x1 = right_line_centroids[-1][0] - robot_position.x 
                 # right_y1 = right_line_centroids[-1][1] - robot_position.y 
                 # right_y2 = right_line_centroids[0][1] - robot_position.y 
-                right_x1 = -right_line_centroids[0][0] + robot_position.x 
+                right_x1 = -right_line_centroids[0][0] + robot_position.x + 1
                 right_y1 = -right_line_centroids[-1][1] + robot_position.y 
                 right_y2 = -right_line_centroids[0][1] + robot_position.y 
                 # right_y1 = reg_right.predict(np.array(right_x1).reshape(-1,1)) - robot_position.y

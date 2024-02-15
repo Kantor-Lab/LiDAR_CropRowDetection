@@ -117,9 +117,9 @@ def create_sdf_world(num_rows, bushes_per_row, bush_spacing, row_spacing):
         visual = ET.SubElement(link, 'visual', name='visual')
         geometry = ET.SubElement(visual, 'geometry')
         mesh = ET.SubElement(geometry, 'mesh')
-        # ET.SubElement(mesh, 'uri').text = f'model://bush_1_nc/meshes/Bush_31.obj'
-        ET.SubElement(mesh, 'uri').text = f'model://corn_stalk/meshes/corn_1.obj'
-        ET.SubElement(mesh, 'scale').text = f'{0.002} {0.002} {0.001}'
+        ET.SubElement(mesh, 'uri').text = f'model://bush_1_nc/meshes/Bush_31.obj'
+        # ET.SubElement(mesh, 'uri').text = f'model://corn_stalk/meshes/corn_1.obj'
+        ET.SubElement(mesh, 'scale').text = f'{0.0001} {0.00015} {0.0004}'
 
         material = ET.SubElement(visual, 'material')
         script = ET.SubElement(material, 'script')
@@ -181,20 +181,20 @@ def create_sdf_world(num_rows, bushes_per_row, bush_spacing, row_spacing):
     # Generate bush models in rows
     for row in range(1, num_rows):
         y = row * row_spacing 
-        # if (y/row_spacing) % 5 == 0 and y != 0:
-        #     pass
-        # else:
-        z = 0.171977
-        for bush in range(bushes_per_row):
-            error = random.uniform(-0.1, 0.1)
-            # print(error)
-            y = row * row_spacing #+ error
-            x = bush * bush_spacing
-            # if (x/bush_spacing) % 5 == 0 and x!=0:
-            #     pass
-            # else:
-            world.append(create_bush_model(i, x, y, z, 0.0003))
-            i += 1
+        if (y/row_spacing) % 5 == 0 and y != 0:
+            pass
+        else:
+            z = 0.171977
+            for bush in range(bushes_per_row):
+                error = random.uniform(-0.1, 0.1)
+                # print(error)
+                y = row * row_spacing #+ error
+                x = bush * bush_spacing
+                if (x/bush_spacing) % 5 == 0 and x!=0:
+                    pass
+                else:
+                    world.append(create_bush_model(i, x, y, z, 0.0003))
+                    i += 1
 
     state = ET.SubElement(world, 'state', world_name='default')
 
@@ -208,27 +208,27 @@ def create_sdf_world(num_rows, bushes_per_row, bush_spacing, row_spacing):
     # Generate bush models in rows
     for row in range(1, num_rows):
         y = row * row_spacing
-        # if (y/row_spacing) % 5 == 0 and y != 0:
-        #     pass
-        # else:
-        z = 0.171977
-        for bush in range(bushes_per_row):
-            error = random.uniform(-0.1, 0.1)
-            # print(error)
-            y = row * row_spacing #+ error
-            x = bush * bush_spacing
-            # if (x/bush_spacing) % 5 == 0 and x !=0:
-            #     pass
-            # else:
-            model_state = ET.SubElement(state, 'model', name=f'bush_1_nc_{j}')
-            ET.SubElement(model_state, 'pose').text = f'{x} {y} {z} 0 -0 0'
-            ET.SubElement(model_state, 'scale').text = '1 1 1'
-            link_state = ET.SubElement(model_state, 'link', name='link')
-            ET.SubElement(link_state, 'pose').text = f'{x} {y} {z} 0 -0 0'
-            ET.SubElement(link_state, 'velocity').text = '0 0 0 0 -0 0'
-            ET.SubElement(link_state, 'acceleration').text = '0 0 0 0 -0 0'
-            ET.SubElement(link_state, 'wrench').text = '0 0 0 0 -0 0'
-            j += 1
+        if (y/row_spacing) % 5 == 0 and y != 0:
+            pass
+        else:
+            z = 0.171977
+            for bush in range(bushes_per_row):
+                error = random.uniform(-0.1, 0.1)
+                # print(error)
+                y = row * row_spacing #+ error
+                x = bush * bush_spacing
+                if (x/bush_spacing) % 5 == 0 and x !=0:
+                    pass
+                else:
+                    model_state = ET.SubElement(state, 'model', name=f'bush_1_nc_{j}')
+                    ET.SubElement(model_state, 'pose').text = f'{x} {y} {z} 0 -0 0'
+                    ET.SubElement(model_state, 'scale').text = '1 1 1'
+                    link_state = ET.SubElement(model_state, 'link', name='link')
+                    ET.SubElement(link_state, 'pose').text = f'{x} {y} {z} 0 -0 0'
+                    ET.SubElement(link_state, 'velocity').text = '0 0 0 0 -0 0'
+                    ET.SubElement(link_state, 'acceleration').text = '0 0 0 0 -0 0'
+                    ET.SubElement(link_state, 'wrench').text = '0 0 0 0 -0 0'
+                    j += 1
 
     # State for ground plane
     ground_plane_state = ET.SubElement(state, 'model', name='ground_plane')
@@ -253,9 +253,9 @@ def create_sdf_world(num_rows, bushes_per_row, bush_spacing, row_spacing):
     # Convert to a string and write to a file
     tree = ET.ElementTree(sdf)
     ET.indent(tree, space="\t", level=0)
-    tree.write('/home/ruijiliu/catkin_ws/src/iowa_navigation/worlds/test_corn.world', encoding='utf-8', xml_declaration=False)
+    tree.write('/home/ruijiliu/catkin_ws/src/iowa_navigation/worlds/real_mature_soybean.world', encoding='utf-8', xml_declaration=False)
     print("finished")
 # Example usage: create a world with 2 rows of bushes, 5 bushes per row, bushes spaced by 2 meters, rows spaced by 1 meter
 if __name__ == "__main__":
     # Example usage of the function
-    create_sdf_world(num_rows=15, bushes_per_row=40, bush_spacing=0.5, row_spacing=0.762)
+    create_sdf_world(num_rows=15, bushes_per_row=40, bush_spacing=0.6, row_spacing=0.762)
