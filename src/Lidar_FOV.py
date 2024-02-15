@@ -25,7 +25,7 @@ def lidar_callback(msg):
 
         # Check if the point's angle is within the desired range #and 0.1 <= point[0] <= 10 
         # if min_angle <= point_angle <= max_angle and 0.1 <= point[0] <= 2 and point[2] <= 0.3:
-        if min_angle <= point_angle <= max_angle and 0 <= point[0] <= 4: #and -1 <= point[1] <= 1:
+        if min_angle <= point_angle <= max_angle and 0 <= point[0] <= 3: #and -1 <= point[1] <= 1:
             filtered_points.append(point)
 
     # Create a new PointCloud2 message for the filtered points

@@ -32,6 +32,7 @@ initial_orientation = None
 initial_position = None
 mode = 0
 switched_line = 0
+swiped_lines = 1
 number_of_rows = 1
 line_fitting = 0
 j = 0
@@ -101,7 +102,7 @@ def lidar_callback(msg, marker_pub):
     global switched_line
     global line_fitting
     mode_pub.publish(mode)
-    ranges = [(0, 2.5)]#, (2.3, 3), (3, 3.5)]#(1.8, 2.3), (2.3, 2.8), (2.8, 3.3)] #[(0, 1.3),(1.3, 1.7),(1.7, 2.2), (2.2, 2.6)]
+    ranges = [(0, 2.3)]#, (2.3, 3), (3, 3.5)]#(1.8, 2.3), (2.3, 2.8), (2.8, 3.3)] #[(0, 1.3),(1.3, 1.7),(1.7, 2.2), (2.2, 2.6)]
     # ranges = [(0, 1.3),(1.3, 1.7),(1.7, 2.2), (2.2, 2.6)]
     pc_data = pc2.read_points(msg, field_names=("x", "y", "z"), skip_nans=True)
     pc_array = np.array(list(pc_data))
@@ -122,6 +123,7 @@ def lidar_callback(msg, marker_pub):
         print(mode)
         print("switching rows")
         turning(initial_orientation, robot_orientation, initial_position, robot_position)
+        
     if mode == 0 and len((pc_array)) > 200:
         line_fitting = 0
         time_to_stop = 0
@@ -161,7 +163,9 @@ def lidar_callback(msg, marker_pub):
             # print("MAE is:", mae ) 
             # rmse = calculate_rmse(crop_location, fitting_points)
             # print("RMSE is:", rmse)
+    swiped_lines_publisher.publish(swiped_lines)    
     line_fitting_function.publish(line_fitting)
+    
 def calculate_kmeans(msg, pc_array,robot_position, robot_orientation, initial_orientation):
     
     # global robot_position
@@ -220,20 +224,27 @@ def calculate_kmeans(msg, pc_array,robot_position, robot_orientation, initial_or
     print("true orientation", true_orientation)
     rotation_matrix = quaternion_to_rotation_matrix(true_orientation)
 
-    if -0.1 < now_euler[2]-initial_euler[2] < 0.1:
+    # if -0.5 < now_euler[2]-initial_euler[2] < 0.5:
+    #     T = np.array([robot_position.x + 1, robot_position.y, robot_position.z])
+    # else:
+    #     T = np.array([robot_position.x -1, robot_position.y, robot_position.z])
+    global swiped_lines
+    if swiped_lines % 2 == 1:
         T = np.array([robot_position.x + 1, robot_position.y, robot_position.z])
     else:
-        T = np.array([robot_position.x - 1, robot_position.y, robot_position.z])
-
+        T = np.array([robot_position.x -1, robot_position.y, robot_position.z])
     
     for point in centroids:
         # old_pointx = point[0]
         # point[0] = -point[1] # Y axis in lidar and x in global is opposite
         # point[1] = old_pointx * np.cos(np.radians(30))
-        point[0] = point[0] * np.cos(0.5)
+        point[0] = point[0] * np.cos(0.7)
         # point[1] = old_pointx
         point[2] = 0 
-        P = np.array([point[0], point[1], point[2]])
+        if swiped_lines % 2 == 1:
+            P = np.array([point[0], point[1], point[2]])
+        else:
+            P = np.array([-point[0], point[1], point[2]])
         new_point = rotation_matrix @ P + T
         # print("new_point", new_point)
         # new_point = point
@@ -375,10 +386,11 @@ def turning(initial_orientation, robot_orientation, initial_position, robot_posi
 
     straight_msg = Twist()
     straight_msg.linear.x = 0.2
-    straight_distance = 3.81
+    straight_distance = 1.524
     global mode
     global j
     global i
+    global swiped_lines
     global switched_line
     global number_of_rows
     if number_of_rows == 1:
@@ -408,6 +420,7 @@ def turning(initial_orientation, robot_orientation, initial_position, robot_posi
             stop_msg = Twist()
             stop_msg.linear.x = 0
             mode = 0
+            swiped_lines += 1
             switched_line = 1
             number_of_rows = 0
             j = 0
@@ -439,6 +452,7 @@ def turning(initial_orientation, robot_orientation, initial_position, robot_posi
             stop_msg = Twist()
             stop_msg.linear.x = 0
             mode = 0
+            swiped_lines += 1
             switched_line = 1
             number_of_rows = 1
             # i = 1
@@ -465,6 +479,7 @@ if __name__ == "__main__":
     value_pub = rospy.Publisher('/number_of_centroids', Int32, queue_size=1)
     mode_pub = rospy.Publisher('/modes', Int32, queue_size=1)
     line_fitting_function = rospy.Publisher('/line_function', Int32, queue_size=1)
+    swiped_lines_publisher = rospy.Publisher('/swiped_lines', Int32, queue_size=1)
     endvel_publish = rospy.Publisher('/cmd_vel', Twist, queue_size=1)
     # # LINE_pub = rospy.Publisher("/line_marker", Marker, queue_size=1)
     rospy.Subscriber("/odometry/filtered", Odometry, odometry_callback,queue_size= 1)
