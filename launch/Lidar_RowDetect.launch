@@ -11,6 +11,9 @@
     <!-- RANSAC line fitting -->
     <node name="RANSAC" pkg="Lidar_RowDetect" type="Ransac_fittingline.py" output="screen" />
     
+    <!-- Ground Truth marker -->
+    <node name="marker" pkg="Lidar_RowDetect" type="markers.py" output="screen" />
+    
     <!-- EKF -->
     <node name="EKF" pkg="CMU_EKF_Node" type="ekf" output="screen" />
     
@@ -19,5 +22,7 @@
     
     <!-- Pure_pursuit -->
     <node name="Pure_pursuit" pkg="pure_pursuit" type="pure_pursuit.py" output="screen" />
+    
+    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find Lidar_RowDetect)/config/rowdetection.rviz" />
     <!-- Add more nodes for additional Python scripts as needed -->
 </launch>
