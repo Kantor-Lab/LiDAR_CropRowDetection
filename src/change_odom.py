@@ -57,19 +57,26 @@ def odom_position(msg):
         # robot_position.y = -robot_position.y + initial_position.y
         # robot_position.z = -robot_position.z + initial_position.z
         global total_mae
-        total_mae.append(np.abs(msg.pose.pose.position.y - 0.75))
-        p = Point()
-        p.x = msg.pose.pose.position.x
-        p.y = msg.pose.pose.position.y
-        p.z = 0 
-        new_centroids.append(p)
+        gt = (0.765*3)/2
+        total_mae.append(np.abs(msg.pose.pose.position.y - gt))
+        p1 = Point()
+        p1.x = msg.pose.pose.position.x
+        p1.y = msg.pose.pose.position.y + 0.762
+        p1.z = 0 
+        new_centroids.append(p1)
+        p2 = Point()
+        p2.x = msg.pose.pose.position.x
+        p2.y = msg.pose.pose.position.y - 0.762
+        p2.z = 0 
+        new_centroids.append(p2)
         global markers
         markers.append(new_centroids)
         for centroids in markers:
             for point in centroids:
                 cluster_marker.points.append(point)
-        if msg.pose.pose.position.x > 18:
+        if msg.pose.pose.position.x > 20:
             print("odometry MAE is:", np.mean(total_mae))
+            print("odometry std is:", np.std(total_mae))
         marker_pub.publish(cluster_marker)
 
 if __name__ == '__main__':

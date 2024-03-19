@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/home/ruijiliu/anaconda3/envs/rapids-23.08/bin/python3
 
 import rospy
 import sensor_msgs.point_cloud2 as pc2

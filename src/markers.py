@@ -19,16 +19,16 @@ def marker_array_publisher():
     #                  [5.5016, -0.7, 0], [6.10254, -0.7, 0], [6.69993, -0.7, 0], [7.24714, -0.7, 0], [3.11572, 1.21147, 0],
     #                  [3.69085, 1.21147, 0], [4.26631, 1.21147, 0], [4.82564, 1.21147, 0], [5.39877, 1.21147, 0],
     #                  [5.96236, 1.21147, 0], [6.51781, 1.21147, 0], [7.06606, 1.21147, 0]]
-    num_rows=2
-    bushes_per_row=40
+    num_rows=4
+    bushes_per_row=200
     bush_spacing=0.5
-    row_spacing=1.0
+    row_spacing=0.762
 
     crop_location = []
-    for row in range(num_rows):
+    for row in range(-8,8):
         y = row * row_spacing
         z = 0
-        for bush in range(bushes_per_row):
+        for bush in range(0, bushes_per_row):
             x = bush * bush_spacing
             temp = []
             temp.append(x)
@@ -47,7 +47,10 @@ def marker_array_publisher():
             marker.id = i
             marker.type = Marker.SPHERE
             marker.action = Marker.ADD
-            marker.pose.position = Point(crop_location[i][0] + 0.510412, crop_location[i][1] + 0.133716, 0)
+            # marker.pose.position = Point(crop_location[i][0] + 0.510412, crop_location[i][1] + 0.133716, 0) #soybean
+            # marker.pose.position = Point(crop_location[i][0] + 0.527891, crop_location[i][1] + 0.194646, 0) #soybean
+            # marker.pose.position = Point(crop_location[i][0] + 1.873750, crop_location[i][1] - 1.6602027, 0) #corn
+            marker.pose.position = Point(crop_location[i][0], crop_location[i][1], 0)
             marker.pose.orientation.w = 1.0
             marker.scale.x = 0.2
             marker.scale.y = 0.2

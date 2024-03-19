@@ -5,10 +5,9 @@ from sensor_msgs.msg import PointCloud2
 import numpy as np
 
 def lidar_callback(msg):
-    # Define the angle range (in radians)
-    # min_angle = np.radians(-130)  # Minimum angle (e.g., -45 degrees)
-    min_angle = np.radians(-100)
-    max_angle = np.radians(100)   # Maximum angle (e.g., 45 degrees)
+    # Define the angle range (in radians) 
+    min_angle = np.radians(-90)  # Minimum angle (e.g., -45 degrees)
+    max_angle = np.radians(90)   # Maximum angle (e.g., 45 degrees)
 
     # Create an empty list to store the filtered points
     filtered_points = []
@@ -25,7 +24,7 @@ def lidar_callback(msg):
 
         # Check if the point's angle is within the desired range #and 0.1 <= point[0] <= 10 
         # if min_angle <= point_angle <= max_angle and 0.1 <= point[0] <= 2 and point[2] <= 0.3:
-        if min_angle <= point_angle <= max_angle and 0 <= point[0] <= 3: #and -1 <= point[1] <= 1:
+        if min_angle <= point_angle <= max_angle and 0 <= point[0] <= 3.3: #and -1 <= point[1] <= 1:
             filtered_points.append(point)
 
     # Create a new PointCloud2 message for the filtered points

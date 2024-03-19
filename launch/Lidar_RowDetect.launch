@@ -1,0 +1,23 @@
+<launch>
+    <!-- Filter based on LiDAR FOV -->
+    <node name="LiDAR_FOV" pkg="Lidar_RowDetect" type="Lidar_FOV.py" output="screen" />
+
+    <!-- Filter out points below virtual plane -->
+    <node name="Virtual_plane" pkg="Lidar_RowDetect" type="Virtual_groundplane.py" output="screen" />
+
+    <!-- K-means clustering -->
+    <node name="K_means" pkg="Lidar_RowDetect" type="Row_Detection.py" output="screen" />
+    
+    <!-- RANSAC line fitting -->
+    <node name="RANSAC" pkg="Lidar_RowDetect" type="Ransac_fittingline.py" output="screen" />
+    
+    <!-- EKF -->
+    <node name="EKF" pkg="CMU_EKF_Node" type="ekf" output="screen" />
+    
+    <!-- Path_planning -->
+    <node name="path_planning" pkg="CMU_Path_Planning_Node" type="path_planning" output="screen" />
+    
+    <!-- Pure_pursuit -->
+    <node name="Pure_pursuit" pkg="pure_pursuit" type="pure_pursuit.py" output="screen" />
+    <!-- Add more nodes for additional Python scripts as needed -->
+</launch>

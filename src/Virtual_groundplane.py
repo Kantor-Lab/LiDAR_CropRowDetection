@@ -12,35 +12,9 @@ def lidar_callback(msg, marker_pub):
     pc_data = pc2.read_points(msg, field_names=("x", "y", "z"), skip_nans=True)
     pc_array = np.array(list(pc_data))
 
-    # Fit a plane using RANSAC
-    # ransac = RANSACRegressor()
-    # ransac.fit(pc_array[:, :2], pc_array[:, 2])
-    # a = ransac.estimator_.coef_[0]
-    # b = ransac.estimator_.coef_[1]
-    # c = -1
-    # d = ransac.estimator_.intercept_
     x = pc_array[:, 0]
     y = pc_array[:, 1]
     z = pc_array[:, 2]
-
-    # print("x", np.mean(x))
-    # Create the design matrix
-    A = np.column_stack((x, y, np.ones_like(x)))
-    # print(A)
-    # Perform Singular Value Decomposition (SVD) to solve for the plane coefficients
-    # U, S, VT = svd(A)
-    # normal = VT[-1, :-1]
-    # d = VT[-1, -1]
-
-    # Calculate the plane parameters (A, B, C, D) for the equation Ax + By + Cz + D = 0
-    coefficients, residuals, _, _ = np.linalg.lstsq(A, z, rcond=None)
-    a, b, d = coefficients
-    c = -1
-    # a, b = normal
-    # c = -1
-    # a+= 0.15
-    # Extract the plane parameters
-    # a, b, c = ransac.estimator_.coef_
     
     # Create a Marker message for the plane
     plane_marker = Marker()
@@ -50,26 +24,14 @@ def lidar_callback(msg, marker_pub):
     plane_marker.pose.position.x = np.mean(x)
     plane_marker.pose.position.y = np.mean(y)
     plane_marker.pose.position.z = np.mean(z)
-    roll = np.arctan(b / d)
-    pitch = np.arctan(a / d)
-    yaw = 0  # You can adjust the yaw as needed
-    q = tf.transformations.quaternion_from_euler(roll, pitch, yaw)
-    # print(q)
-    # q1 = tf.transformations.quaternion_from_euler(0, -57, 0)
+
     q1 = tf.transformations.quaternion_from_euler(0, -0.7, 0)
-    # q1 = tf.transformations.quaternion_from_euler(0, -70, 0)
+    # q1 = tf.transformations.quaternion_from_euler(0, -0.5, -0.08)
 
     plane_marker.pose.orientation.x = q1[0]
     plane_marker.pose.orientation.y = q1[1]
     plane_marker.pose.orientation.z = q1[2]
     plane_marker.pose.orientation.w = q1[3]
-    # plane_marker.pose.position.x = 0
-    # plane_marker.pose.position.y = 0
-    # plane_marker.pose.position.z = -c / c  # Adjust the height based on the plane equation
-    # plane_marker.pose.orientation.x = 0
-    # plane_marker.pose.orientation.y = 0
-    # plane_marker.pose.orientation.z = np.sin(np.arctan(b / a / -c))
-    # plane_marker.pose.orientation.w = np.cos(np.arctan(b / a / -c))
     plane_marker.scale.x = 10.0  # Adjust the scale as needed
     plane_marker.scale.y = 10.0
     plane_marker.scale.z = 0.001
@@ -82,8 +44,8 @@ def lidar_callback(msg, marker_pub):
     marker_pub.publish(plane_marker)
 
     # min_angle = np.radians(-130)  # Minimum angle (e.g., -45 degrees)
-    min_angle = np.radians(-90)
-    max_angle = np.radians(90)   # Maximum angle (e.g., 45 degrees)
+    min_angle = np.radians(-130)
+    max_angle = np.radians(130)   # Maximum angle (e.g., 45 degrees)
     points_above_plane = []
     fields = msg.fields
     num_fields = len(fields)
@@ -96,10 +58,8 @@ def lidar_callback(msg, marker_pub):
 
     # Normalize the normal vector to have a unit length
     normal_vector /= np.linalg.norm(normal_vector)
-
     # Calculate the "d" coefficient using the dot product between the normal vector and plane's position
     d = -np.dot(normal_vector, np.array([np.mean(x), np.mean(y), np.mean(z)]))
-
     # Extract a, b, c coefficients from the normal vector
     a, b, c = normal_vector
 
@@ -110,9 +70,7 @@ def lidar_callback(msg, marker_pub):
         # Check if the point's angle is within the desired range
         if min_angle <= point_angle <= max_angle and point[0] <= 20: #and point[2] <= 0.4:
         # Extract the x-coordinate of the point as an angle (modify this if your data encodes angles differently)
-            # if a * point[0] + b * point[1] + c * point[2] + d > -1:
-            if a * point[0] + b * point[1] + c * point[2] + d > 0.06:
-            # if a * point[0] + b * point[1] + c * point[2] + d > 0.00:
+            if a * point[0] + b * point[1] + c * point[2] + d > 0.02:
                 points_above_plane.append(point)
             
                 # points_above_plane.append(point)
@@ -148,4 +106,5 @@ if __name__ == "__main__":
     marker_pub = rospy.Publisher("/plane_marker", Marker, queue_size=1)
     filtered_pub = rospy.Publisher("/points_above_plane", PointCloud2, queue_size=1)
     rospy.Subscriber("/filtered_lidar_points", PointCloud2, lidar_callback, marker_pub)
+    # rospy.Subscriber("/velodyne_points", PointCloud2, lidar_callback, marker_pub)
     rospy.spin()
