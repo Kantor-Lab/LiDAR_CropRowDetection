@@ -26,6 +26,9 @@ def marker_array_publisher():
 
     crop_location = []
     for row in range(-8,8):
+        # if row == 4 or row == -1:
+        #     pass
+        # else:
         y = row * row_spacing
         z = 0
         for bush in range(0, bushes_per_row):

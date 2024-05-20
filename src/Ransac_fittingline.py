@@ -155,18 +155,18 @@ def publish_lines_callback():
             for i in range(0, len(fitting_centroids) - 1 , 2):
                     local_left_x = fitting_centroids[i + 1][0] - robot_position.x
                     local_right_x = fitting_centroids[i][0] - robot_position.x
-                    if -0.5 < local_left_x < min_left:
+                    if -1.0 < local_left_x < min_left:
                         min_left_index = i + 1
                         min_left = local_left_x
                         left_x2 = local_left_x
-                    if -0.5 < local_right_x < min_right:
+                    if -1.0 < local_right_x < min_right:
                         min_right_index = i
                         min_right = local_right_x
                         right_x2 = local_right_x
             if min_left_index is None and min_right_index is None:
                 print("moving straight")
                 vel_msg = Twist()
-                vel_msg.linear.x = 0.4
+                vel_msg.linear.x = 0.2
                 initialvel_publish.publish(vel_msg)
             if min_left_index is not None:
                 print("left")
@@ -309,13 +309,13 @@ def publish_lines_callback():
         #     print("overall mae between lines:", np.mean(total_mae))
         #     print("overall std between lines:", np.mean(total_std))
         #     print("max deviation from ground truth:", max_value)
-            # print("overall rmse between lines:", np.mean(total_rmse))
-            # if robot_position.x > 30:
-            #     error = np.array(angle_error)
-            #     mae = np.mean(error)
-            #     std = np.std(error)
-            #     print(max_value)
-            #     print("MAE & std:", mae, std)
+        #     print("overall rmse between lines:", np.mean(total_rmse))
+        #     if robot_position.x > 30:
+        #         error = np.array(angle_error)
+        #         mae = np.mean(error)
+        #         std = np.std(error)
+        #         print(max_value)
+        #         print("MAE & std:", mae, std)
 def calculate_line_mae(ground_truth, predicted):
     global total_mae
     global total_std

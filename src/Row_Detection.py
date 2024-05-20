@@ -89,11 +89,11 @@ def lidar_callback(msg, marker_pub):
     global switched_line
     global line_fitting
     mode_pub.publish(mode)
-    ranges = [(0, 2.7)]#, (2.3, 3), (3, 3.5)]#(1.8, 2.3), (2.3, 2.8), (2.8, 3.3)] #[(0, 1.3),(1.3, 1.7),(1.7, 2.2), (2.2, 2.6)]
+    ranges = [(0, 2.2)]#, (2.3, 3), (3, 3.5)]#(1.8, 2.3), (2.3, 2.8), (2.8, 3.3)] #[(0, 1.3),(1.3, 1.7),(1.7, 2.2), (2.2, 2.6)]
     pc_data = pc2.read_points(msg, field_names=("x", "y", "z"), skip_nans=True)
     pc_array = np.array(list(pc_data))
     if mode == 0 and len((pc_array)) < 200:
-        if time_to_stop <= 70:
+        if time_to_stop <= 80:
             time_to_stop += 1
             line_fitting = 1
             pass
@@ -155,7 +155,7 @@ def lidar_callback(msg, marker_pub):
     
 def calculate_kmeans(msg, pc_array,robot_position, robot_orientation, initial_orientation, initial_rotation_matrix):
     
-    num_clusters =5  # Adjust the number of clusters as needed
+    num_clusters =4  # Adjust the number of clusters as needed
     kmeans = KMeans(n_clusters=num_clusters, n_init= 10, tol = 1e-4, max_iter = 1000, random_state=0).fit(pc_array)
     
     # Get cluster labels for each point

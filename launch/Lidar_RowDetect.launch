@@ -21,7 +21,7 @@
     <node name="path_planning" pkg="CMU_Path_Planning_Node" type="path_planning" output="screen" />
     
     <!-- Pure_pursuit -->
-    <node name="Pure_pursuit" pkg="pure_pursuit" type="pure_pursuit.py" output="screen" />
+    <!--node name="Pure_pursuit" pkg="pure_pursuit" type="pure_pursuit.py" output="screen" /-->
     
     <node name="rviz" pkg="rviz" type="rviz" args="-d $(find Lidar_RowDetect)/config/rowdetection.rviz" />
     <!-- Add more nodes for additional Python scripts as needed -->
