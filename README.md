@@ -7,7 +7,7 @@ git clone https://github.com/Kantor-Lab/LiDAR_CropRowDetection.git
 cd ~/catkin_ws && catkin_make
 ```
 ## Other Required Packages
-[Cuml Package](https://docs.rapids.ai/install)  (Recommend install it in conda environments)
+[Cuml Package](https://docs.rapids.ai/install)  (Recommend install it in conda environments)  
 [Amiga simulation environments](https://github.com/Kantor-Lab/Amiga_Simulation-Environments.git)  
 [EKF Node](https://github.com/Ruiji-Liu/CMU_EKF_Node)  
 [Dummy Vision](https://github.com/Ruiji-Liu/CMU_Dummy_Vision)  
