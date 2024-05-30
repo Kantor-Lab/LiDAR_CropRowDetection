@@ -1,5 +1,10 @@
 # LiDAR_CropRowDetection
-This is a crop row detection algorithms based on LiDAR data
+This is a crop row detection algorithm based on LiDAR data with pure pursuit as the controller to reach autonomous navigation in the agriculture fields
+
+
+https://github.com/Kantor-Lab/LiDAR_CropRowDetection/assets/78890103/a9f3bc91-64e0-49e1-9efd-d4db47650c64
+
+
 ## Installation
 ```
 cd ~/catkin_ws/src
@@ -20,8 +25,8 @@ source devel/setup.bash
 roslaunch Lidar_RowDetect Lidar_RowDetect.launch
 ```
 ## Visualization
+
 Visualization of the LiDAR row detection algorithm (top) while robot operating in the simulated young soybean fields (bottom). The visualization tool provides
 information on detected crop positions in the current robot frame(red points), crop ground truth positions(green points), and predicted crop row positions and orientations(blue lines)
-https://youtu.be/opVogsDHn-c 
 ![visualization](https://github.com/Kantor-Lab/LiDAR_CropRowDetection/assets/78890103/5b16d715-b282-44e9-83a9-f7a187468eab)
 
