@@ -182,8 +182,11 @@ def publish_lines_callback():
                 left_x1 = left_line_centroids[-1][0] - robot_position.x 
                 left_y1 = left_line_centroids[-1][1] - robot_position.y
                 left_y2 = left_line_centroids[0][1] - robot_position.y
+                # print("left_x1", left_x1)
                 # left_y1 = reg_left.predict(np.array(left_x1).reshape(-1,1))[0]- robot_position.y
-                # left_y2 = (reg_left.predict(np.array(left_x2).reshape(-1,1))[0]- robot_position.y)
+                # left_y2 = reg_left.predict(np.array(left_x2).reshape(-1,1))[0]- robot_position.y
+                # print("left_y1",left_y1)
+                # print("left_y2",left_y2)
                 publish_fitting_line(left_line_centroids, reg_left, line_marker)
 
                 predicted = [(left_x1 + robot_position.x , left_y1 + robot_position.y), (left_x2 + robot_position.x, left_y2 +robot_position.y)]
@@ -294,7 +297,10 @@ def publish_lines_callback():
                                         x2=right_x2 , y2=right_y2)
             line_2 = line_2pts(x1=left_x1, y1=left_y1,
                                         x2=left_x2, y2=left_y2)
-            
+            # line_1 = line_2pts(x1=2, y1=-0.35,
+            #                             x2=-1 , y2=-0.35)
+            # line_2 = line_2pts(x1=2, y1=0.35,
+            #                             x2=-1, y2=0.35)
             msg.lines = [line_1, line_2]
             
             msg.num_lines = 2

@@ -14,11 +14,18 @@
     <!-- Ground Truth marker -->
     <node name="marker" pkg="Lidar_RowDetect" type="markers.py" output="screen" />
     
+    <!-- RealTime Odom -->
+    <node name="Chnage_odom" pkg="Lidar_RowDetect" type="change_odom.py" output="screen" />
+    
     <!-- EKF -->
-    <node name="EKF" pkg="CMU_EKF_Node" type="ekf" output="screen" />
+    <!--node name="EKF" pkg="CMU_EKF_Node" type="ekf" output="screen" /-->
+    <!--node name="EKF" pkg="Lidar_RowDetect" type="generate_waypoint.py" output="screen" /-->
     
     <!-- Path_planning -->
-    <node name="path_planning" pkg="CMU_Path_Planning_Node" type="path_planning" output="screen" />
+    <!--node name="path_planning" pkg="CMU_Path_Planning_Node" type="path_planning" output="screen" /-->
+    
+    <!-- Path_planning -->
+    <node name="EKF" pkg="Lidar_RowDetect" type="waypoints.py" output="screen" />
     
     <!-- Pure_pursuit -->
     <!--node name="Pure_pursuit" pkg="pure_pursuit" type="pure_pursuit.py" output="screen" /-->

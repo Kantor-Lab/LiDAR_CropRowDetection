@@ -16,7 +16,7 @@ def lidar_callback(msg, marker_pub):
     y = pc_array[:, 1]
     z = pc_array[:, 2]
     
-    above_plane = 0.06
+    above_plane = 0.00 #0.06
     # Create a Marker message for the plane
     plane_marker = Marker()
     plane_marker.header = msg.header

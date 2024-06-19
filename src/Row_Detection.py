@@ -18,6 +18,7 @@ import open3d as o3d
 import tf
 from sklearn.metrics import r2_score
 from geometry_msgs.msg import Twist
+from collections import deque
 time_to_stop = 0
 robot_position = None
 robot_orientation = None
@@ -38,12 +39,18 @@ line_fitting = 0
 j = 0
 previous_seq = 0
 now_seq = 0
+orientation_history = deque(maxlen=10)
 def odometry_callback(msg):
     global i
     global j
     global initial_orientation
     global initial_position
-    global initial_rotation_matrix
+    global orientation_history
+
+    orientation_history.append(msg.pose.pose.orientation)
+    # rospy.loginfo("Current orientation history: %s", orientation_history)
+    # rospy.loginfo("Current orientation history: %s", orientation_history[0])
+    # if initial_orientation is None:
     if initial_orientation is None:
         initial_orientation = msg.pose.pose.orientation
         print("getting initial orientation")
@@ -92,6 +99,7 @@ def lidar_callback(msg, marker_pub):
     ranges = [(0, 2.2)]#, (2.3, 3), (3, 3.5)]#(1.8, 2.3), (2.3, 2.8), (2.8, 3.3)] #[(0, 1.3),(1.3, 1.7),(1.7, 2.2), (2.2, 2.6)]
     pc_data = pc2.read_points(msg, field_names=("x", "y", "z"), skip_nans=True)
     pc_array = np.array(list(pc_data))
+    print("length", len(pc_array))
     if mode == 0 and len((pc_array)) < 200:
         if time_to_stop <= 80:
             time_to_stop += 1
@@ -190,9 +198,16 @@ def calculate_kmeans(msg, pc_array,robot_position, robot_orientation, initial_or
     new_centroids = []
     points = []
     
+    global i
+    global orientation_history
     now_rotation = quaternion_to_rotation_matrix([robot_orientation.x, robot_orientation.y, robot_orientation.z, robot_orientation.w])
     rotation_matrix = np.dot(now_rotation, np.linalg.inv(initial_rotation_matrix))
-
+    # if i == 1:
+    #     rotation_matrix = np.dot(now_rotation, np.linalg.inv(initial_rotation_matrix))
+    #     i = 0
+    # elif orientation_history is not None:
+    #     previous_orientation = quaternion_to_rotation_matrix([orientation_history[0].x, orientation_history[0].y, orientation_history[0].z, orientation_history[0].w ])
+    #     rotation_matrix = np.dot(now_rotation, np.linalg.inv(previous_orientation))
     global swiped_lines
     T = np.array([robot_position.x, robot_position.y, robot_position.z])
     for point in centroids:
@@ -210,7 +225,7 @@ def calculate_kmeans(msg, pc_array,robot_position, robot_orientation, initial_or
     markers.append(new_centroids)
     global fitting_points
     global switched_line
-    global i
+    
     if switched_line == 1:
         fitting_points = []
         # i = 1
@@ -237,7 +252,7 @@ def calculate_kmeans(msg, pc_array,robot_position, robot_orientation, initial_or
                     fitting_centroids.append(temp)
         else:
             row = [[arr[0], robot_position.y - arr[1], arr[2]] for arr in row]
-        # print(row)
+            print(row)
             neg_num = min((n[1] for n in row if n[1] < 0), key=lambda x: abs(x))
         # print("neg", neg_num)
             pos_num = next(n[1] for n in row if n[1] > 0)

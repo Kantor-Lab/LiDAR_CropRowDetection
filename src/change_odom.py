@@ -6,12 +6,15 @@ from visualization_msgs.msg import Marker
 from geometry_msgs.msg import Point
 from std_msgs.msg import Header
 import numpy as np
+import csv
+import os
 i = 1
 initial_position = None
 markers = []
 robot_position = None
 total_mae = []
 total_std = []
+robot_location = []
 def global_to_local_odometry(global_odom):
     local_odom = Odometry()
 
@@ -24,6 +27,23 @@ def global_to_local_odometry(global_odom):
         local_odom.pose.pose.position.y = global_offset.pose.pose.position.y - local_odom.pose.pose.position.y
 
     return local_odom
+def save_list_to_csv(file_name, data, directory = None):
+    if directory:
+        os.makedirs(directory, exist_ok=True)
+        file_path = os.path.join(directory, file_name)
+    else:
+        file_path = file_name
+
+    with open(file_path, mode='w', newline='') as file:
+        writer = csv.writer(file)
+        # Check if data is a single value or a list of values
+        if isinstance(data, (np.float64, float, int)):
+            writer.writerow([data])
+        elif isinstance(data, (list, np.ndarray)):
+            # Ensure each element is written as a separate row
+            for item in data:
+                writer.writerow([item])
+    print(f"List saved to {file_path}")
 
 def odom_position(msg):
     global i 
@@ -57,6 +77,8 @@ def odom_position(msg):
         # robot_position.y = -robot_position.y + initial_position.y
         # robot_position.z = -robot_position.z + initial_position.z
         global total_mae
+        global robot_location
+        robot_location.append([msg.pose.pose.position.y, msg.pose.pose.position.x])
         gt = (0.765*3)/2
         total_mae.append(np.abs(msg.pose.pose.position.y - gt))
         p1 = Point()
@@ -74,9 +96,12 @@ def odom_position(msg):
         for centroids in markers:
             for point in centroids:
                 cluster_marker.points.append(point)
-        if msg.pose.pose.position.x > 20:
-            print("odometry MAE is:", np.mean(total_mae))
-            print("odometry std is:", np.std(total_mae))
+        if msg.pose.pose.position.x > 100:
+            # print("odometry MAE is:", np.mean(total_mae))
+            # print("odometry std is:", np.std(total_mae))
+            # save_list_to_csv('PP_deviate_-10cm.csv', np.random.random(10), directory= "/home/ruijiliu/vision_ws/src/Lidar_RowDetect/mae_results")
+            save_list_to_csv('0.2_covariance_corn_old.csv', robot_location, directory= "/home/ruijiliu/vision_ws/src/Lidar_RowDetect/mae_results")
+            # save_list_to_csv('PP_deviate_0cm_corn.csv', robot_location, directory= "/home/ruijiliu/vision_ws/src/Lidar_RowDetect/mae_results")
         marker_pub.publish(cluster_marker)
 
 if __name__ == '__main__':
