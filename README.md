@@ -2,7 +2,7 @@
 This is a crop row detection algorithm based on LiDAR data with pure pursuit as the controller to reach autonomous navigation in the agriculture fields
 
 
-[![Watch the video](https://img.youtube.com/vi/FYJuxgDMiHE/1.jpg)](https://youtu.be/FYJuxgDMiHE)
+[![Watch the video](https://img.youtube.com/vi/FYJuxgDMiHE/0.jpg)](https://youtu.be/FYJuxgDMiHE)
 
 
 ## Installation
