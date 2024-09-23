@@ -2,7 +2,7 @@
 This is a crop row detection algorithm based on LiDAR data with pure pursuit as the controller to reach autonomous navigation in the agriculture fields
 
 
-https://github.com/Kantor-Lab/LiDAR_CropRowDetection/videos/icra_2025_test1.mp4
+[![Watch the video](https://img.youtube.com/vi/FYJuxgDMiHE/0.jpg)](https://youtu.be/FYJuxgDMiHE)
 
 
 ## Installation
