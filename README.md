@@ -24,10 +24,9 @@ source devel/setup.bash
 roslaunch Lidar_RowDetect Lidar_RowDetect.launch
 ```
 ## Visualization
+Autonomous navigation in both simulated fields with different crop (corn and soybean) and growth stages (young and grown) and real corn field.
 
-Visualization of the LiDAR row detection algorithm (top) while robot operating in the simulated young soybean fields (bottom). The visualization tool provides
-information on detected crop positions in the current robot frame(red points), crop ground truth positions(green points), and predicted crop row positions and orientations(blue lines)
-![visualization](https://github.com/Kantor-Lab/LiDAR_CropRowDetection/assets/78890103/5b16d715-b282-44e9-83a9-f7a187468eab)
+https://github.com/user-attachments/assets/8c187567-b874-4b32-b83d-da6c80f96077
 
 ## Citation 
 if you use this project in your recent works please refernce to it by:
