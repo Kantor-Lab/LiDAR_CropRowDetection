@@ -28,7 +28,7 @@ roslaunch Lidar_RowDetect Lidar_RowDetect.launch
 
 
 ## Citation 
-if you use this project in your recent works please refernce to it by:
+if you have used this project in your recent works please reference to it:
 
 ```bash
 
