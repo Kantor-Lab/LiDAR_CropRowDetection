@@ -1,12 +1,9 @@
 # LiDAR_CropRowDetection
 This is a crop row detection algorithm based on LiDAR data with a nonlinear Model Predictive Control (MPC) as the controller to reach autonomous navigation in the agriculture fields
+
 [[Project page]](https://diffusion-policy.cs.columbia.edu/)
 [[Paper]](https://diffusion-policy.cs.columbia.edu/#paper)
-[[Video]](https://youtu.be/FYJuxgDMiHE) 
-Check out the video [here](https://youtu.be/FYJuxgDMiHE) or by clicking the image below.
-
-
-[![Watch the video](https://img.youtube.com/vi/FYJuxgDMiHE/0.jpg)](https://youtu.be/FYJuxgDMiHE)
+[[Video]](https://youtu.be/FYJuxgDMiHE)
 
 ## Visualization
 Autonomous navigation by using this navigation system in both simulated fields featuring various crops (corn and soybean) at different growth stages (young and mature), as well as in a real corn field.
