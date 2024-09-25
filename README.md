@@ -1,12 +1,17 @@
 # LiDAR_CropRowDetection
-This is a crop row detection algorithm based on LiDAR data with pure pursuit as the controller to reach autonomous navigation in the agriculture fields
-
+This is a crop row detection algorithm based on LiDAR data with a nonlinear Model Predictive Control (MPC) as the controller to reach autonomous navigation in the agriculture fields
+[[Project page]](https://diffusion-policy.cs.columbia.edu/)
+[[Paper]](https://diffusion-policy.cs.columbia.edu/#paper)
+[[Video]](https://youtu.be/FYJuxgDMiHE) 
 Check out the video [here](https://youtu.be/FYJuxgDMiHE) or by clicking the image below.
 
 
 [![Watch the video](https://img.youtube.com/vi/FYJuxgDMiHE/0.jpg)](https://youtu.be/FYJuxgDMiHE)
 
+## Visualization
+Autonomous navigation by using this navigation system in both simulated fields featuring various crops (corn and soybean) at different growth stages (young and mature), as well as in a real corn field.
 
+https://github.com/user-attachments/assets/8c187567-b874-4b32-b83d-da6c80f96077
 ## Installation
 ```
 cd ~/catkin_ws/src
@@ -23,10 +28,7 @@ cd ~/catkin_ws
 source devel/setup.bash
 roslaunch Lidar_RowDetect Lidar_RowDetect.launch
 ```
-## Visualization
-Autonomous navigation in both simulated fields with different crop (corn and soybean) and growth stages (young and grown) and real corn field.
 
-https://github.com/user-attachments/assets/8c187567-b874-4b32-b83d-da6c80f96077
 
 ## Citation 
 if you use this project in your recent works please refernce to it by:
