@@ -16,10 +16,7 @@ cd ~/catkin_ws && catkin_make
 ## Other Required Packages
 [Cuml Package](https://docs.rapids.ai/install)  (Recommend install it in conda environments)  
 [Amiga simulation environments](https://github.com/Kantor-Lab/Amiga_Simulation-Environments.git)  
-[EKF Node](https://github.com/Ruiji-Liu/CMU_EKF_Node)  
-[Dummy Vision](https://github.com/Ruiji-Liu/CMU_Dummy_Vision)  
-[Path_Planning Node](https://github.com/Ruiji-Liu/CMU_Path_Planning_Node)  
-[Pure_Pursuit Node](https://github.com/Ruiji-Liu/CMU_Pure_Pursuit)  
+
 ## Running
 ```
 cd ~/catkin_ws
