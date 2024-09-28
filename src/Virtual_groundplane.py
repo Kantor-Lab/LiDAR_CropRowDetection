@@ -16,7 +16,7 @@ def lidar_callback(msg, marker_pub):
     y = pc_array[:, 1]
     z = pc_array[:, 2]
     
-    above_plane = 0.00 #0.06
+    above_plane = 0.02 #0.06
     # Create a Marker message for the plane
     plane_marker = Marker()
     plane_marker.header = msg.header
@@ -27,14 +27,17 @@ def lidar_callback(msg, marker_pub):
     plane_marker.pose.position.z = np.mean(z) + above_plane
 
     q1 = tf.transformations.quaternion_from_euler(0, -0.7, 0)
+    # q1 = tf.transformations.quaternion_from_euler(0, -0.5, 0)
+    # q1 = tf.transformations.quaternion_from_euler(0, -0.6, 0)
+    # q1 = tf.transformations.quaternion_from_euler(0, -0.55, 0)
     # q1 = tf.transformations.quaternion_from_euler(0, -0.6, -0.08)
 
     plane_marker.pose.orientation.x = q1[0]
     plane_marker.pose.orientation.y = q1[1]
     plane_marker.pose.orientation.z = q1[2]
     plane_marker.pose.orientation.w = q1[3]
-    plane_marker.scale.x = 5.0  # Adjust the scale as needed
-    plane_marker.scale.y = 5.0
+    plane_marker.scale.x = 10.0  # Adjust the scale as needed
+    plane_marker.scale.y = 10.0
     plane_marker.scale.z = 0.001
     plane_marker.color.a = 0.5  # Adjust the transparency
     plane_marker.color.r = 0.0
@@ -45,8 +48,10 @@ def lidar_callback(msg, marker_pub):
     marker_pub.publish(plane_marker)
 
     # min_angle = np.radians(-130)  # Minimum angle (e.g., -45 degrees)
-    min_angle = np.radians(-130)
-    max_angle = np.radians(130)   # Maximum angle (e.g., 45 degrees)
+    # min_angle = np.radians(-130)
+    # max_angle = np.radians(130)   # Maximum angle (e.g., 45 degrees)
+    min_angle = np.radians(-90)
+    max_angle = np.radians(90)
     points_above_plane = []
     fields = msg.fields
     num_fields = len(fields)
@@ -72,6 +77,7 @@ def lidar_callback(msg, marker_pub):
         if min_angle <= point_angle <= max_angle and point[0] <= 20: #and point[2] <= 0.4:
         # Extract the x-coordinate of the point as an angle (modify this if your data encodes angles differently)
             if a * point[0] + b * point[1] + c * point[2] + d > above_plane:
+            # if a * point[0] + b * point[1] + c * point[2] + d > 0.0:
                 points_above_plane.append(point)
             
                 # points_above_plane.append(point)

@@ -19,6 +19,9 @@ import tf
 from sklearn.metrics import r2_score
 from geometry_msgs.msg import Twist
 from collections import deque
+import matplotlib.pyplot as plt
+from change_odom import save_list_to_csv
+from Lidar_RowDetect.srv import PointTurn, PointTurnResponse
 time_to_stop = 0
 robot_position = None
 robot_orientation = None
@@ -40,17 +43,20 @@ j = 0
 previous_seq = 0
 now_seq = 0
 orientation_history = deque(maxlen=10)
-def odometry_callback(msg):
+last_centroids = []
+left_centroids = []
+left_centroids_abs = []
+right_centroids = []
+right_centroids_abs = []
+drone_list = []
+left_turn = False
+def odometry_callback(msg):#get robot filtered odometry
     global i
     global j
     global initial_orientation
     global initial_position
     global orientation_history
-
     orientation_history.append(msg.pose.pose.orientation)
-    # rospy.loginfo("Current orientation history: %s", orientation_history)
-    # rospy.loginfo("Current orientation history: %s", orientation_history[0])
-    # if initial_orientation is None:
     if initial_orientation is None:
         initial_orientation = msg.pose.pose.orientation
         print("getting initial orientation")
@@ -61,16 +67,7 @@ def odometry_callback(msg):
     else:
         global robot_position
     # Extract the robot's position from the odometry message
-        robot_position = msg.pose.pose.position
-        global robot_orientation
-        robot_orientation = msg.pose.pose.orientation
-def odometry_callback1(msg):
-    global q  
-    global initial_orientation
-    if q == 1:
-        initial_orientation = msg.pose.pose.orientation
-        q += 1
-    else:
+        robot_position = msg.pose.pose.position 
         global robot_orientation
         robot_orientation = msg.pose.pose.orientation
 
@@ -95,13 +92,15 @@ def lidar_callback(msg, marker_pub):
     global mode
     global switched_line
     global line_fitting
+    global left_turn
+    global swiped_lines
     mode_pub.publish(mode)
-    ranges = [(0, 2.2)]#, (2.3, 3), (3, 3.5)]#(1.8, 2.3), (2.3, 2.8), (2.8, 3.3)] #[(0, 1.3),(1.3, 1.7),(1.7, 2.2), (2.2, 2.6)]
-    pc_data = pc2.read_points(msg, field_names=("x", "y", "z"), skip_nans=True)
+    ranges = [(0, 2.4)]#, (2.3, 3), (3, 3.5)]#(1.8, 2.3), (2.3, 2.8), (2.8, 3.3)] #[(0, 1.3),(1.3, 1.7),(1.7, 2.2), (2.2, 2.6)]
+    pc_data = pc2.read_points(msg, field_names=("x", "y", "z"), skip_nans=False)
     pc_array = np.array(list(pc_data))
     print("length", len(pc_array))
     if mode == 0 and len((pc_array)) < 200:
-        if time_to_stop <= 80:
+        if time_to_stop <= 20:
             time_to_stop += 1
             line_fitting = 1
             pass
@@ -111,7 +110,14 @@ def lidar_callback(msg, marker_pub):
     if mode == 1 or mode == 2:
         print(mode)
         print("switching rows")
-        turning(initial_orientation, robot_orientation, initial_position, robot_position)
+        service_response = service_client(left_turn)
+        rospy.loginfo(f"Service called with left={left_turn}. Response: {service_response}")
+        if service_response:
+            mode = 0
+            switched_line = 1
+            swiped_lines += 1
+            left_turn = not left_turn
+            
         
     if mode == 0 and len((pc_array)) > 200:
         line_fitting = 0
@@ -127,43 +133,18 @@ def lidar_callback(msg, marker_pub):
                 cluster_marker, list_message, num_clusters = calculate_kmeans(msg, value, temp_robot_position, temp_robot_orientation, temp_initial_orientation, initial_rotation_matrix)
         end = time.time()
         print("take time:", end - start)
-        marker_pub.publish(cluster_marker)
+        if cluster_marker:
+            marker_pub.publish(cluster_marker)
         LIST_pub.publish(list_message)
         value_pub.publish(num_clusters)
-        ### calculate MAE or RMSE
-        # if temp_robot_position.x > 40:
-        #     crop_location = []
-        #     num_rows=4 
-        #     bushes_per_row=400
-        #     bush_spacing=0.1
-        #     row_spacing=0.762
-        #     for row in range(num_rows):
-        #         # y = row * row_spacing + 0.133716
-        #         y = row * row_spacing 
-        #         # y = row * row_spacing - 1.6502027
-        #         z = 0
-        #         for bush in range(40,bushes_per_row):
-        #             # x = bush * bush_spacing + 0.510412
-        #             x = bush * bush_spacing 
-        #             # x = bush * bush_spacing + 1.873750
-        #             temp = []
-        #             temp.append(x)
-        #             temp.append(y)
-        #             temp.append(z)
-        #             crop_location.append(temp)
-            
-        #     std, mae = calculate_mae(crop_location, fitting_points)
-        #     print("standard deviation:", std)
-        #     print("MAE is:", mae ) 
-            # rmse = calculate_rmse(crop_location, fitting_points)
-            # print("RMSE is:", rmse)
+
     swiped_lines_publisher.publish(swiped_lines)
     change_lane_publisher.publish(switched_line)    
     line_fitting_function.publish(line_fitting)
     
 def calculate_kmeans(msg, pc_array,robot_position, robot_orientation, initial_orientation, initial_rotation_matrix):
     
-    num_clusters =4  # Adjust the number of clusters as needed
+    num_clusters =10  # Adjust the number of clusters as needed
     kmeans = KMeans(n_clusters=num_clusters, n_init= 10, tol = 1e-4, max_iter = 1000, random_state=0).fit(pc_array)
     
     # Get cluster labels for each point
@@ -179,7 +160,6 @@ def calculate_kmeans(msg, pc_array,robot_position, robot_orientation, initial_or
     if len(predicted_centroids) < 9:
         num_clusters = max(set(predicted_centroids), key = predicted_centroids.count)
     else:
-        # print(predicted_centroids[-9])
         num_clusters = max(set(predicted_centroids[-9:]), key = predicted_centroids.count)
     print("most common", num_clusters)
     
@@ -202,6 +182,8 @@ def calculate_kmeans(msg, pc_array,robot_position, robot_orientation, initial_or
     global orientation_history
     now_rotation = quaternion_to_rotation_matrix([robot_orientation.x, robot_orientation.y, robot_orientation.z, robot_orientation.w])
     rotation_matrix = np.dot(now_rotation, np.linalg.inv(initial_rotation_matrix))
+
+    ## Accomodate wheel slipping
     # if i == 1:
     #     rotation_matrix = np.dot(now_rotation, np.linalg.inv(initial_rotation_matrix))
     #     i = 0
@@ -211,65 +193,91 @@ def calculate_kmeans(msg, pc_array,robot_position, robot_orientation, initial_or
     global swiped_lines
     T = np.array([robot_position.x, robot_position.y, robot_position.z])
     for point in centroids:
-        point[0] = point[0] * np.cos(0.7) + 1 
+        point[0] = point[0] * np.cos(0.7) + 1 #0.7 is lidar tilted angle
         point[2] = 0 
         P = np.array([point[0], point[1], point[2]])
-        new_point = rotation_matrix @ P + T
-        points.append(new_point)
+        new_point = now_rotation @P + T
         p = Point()
-        p.x = new_point[0] #+robot_position.y
-        p.y = new_point[1] #+robot_position.x
+        p.x = new_point[0]
+        p.y = new_point[1] 
         p.z = new_point[2] 
         new_centroids.append(p)
+        points.append(new_point)
+        
     global markers
     markers.append(new_centroids)
     global fitting_points
     global switched_line
-    
+
     if switched_line == 1:
         fitting_points = []
         # i = 1
         initial_orientation = None
         switched_line = 0
+    
     fitting_points.append(points)
+    global left_centroids
+    global left_centroids_abs
+    global right_centroids
+    global right_centroids_abs
+    global drone_list
+    detection_error = []
+
     for centroids in markers:
         for point in centroids:
             cluster_marker.points.append(point)
-    # marker_pub.publish(cluster_marker)
+            drone_list.append([point.x, point.y, point.z])
+
+    #### Save detected centroids location       
+    # print("drone list", len(drone_list))
+    # print("last element", drone_list[-1])
+    # file_path = "/home/ruijiliu/vision_ws/src/Lidar_RowDetect/mae_results/drone_map_txt/sim_curvecorn_test.txt"
+    # if robot_position.y > 270:
+    # if robot_position.y < 4651800: #4651667:
+    # if robot_position.x > 50:
+    #     write_points_to_file(drone_list, file_path)
+    
     fitting_centroids = []
     for row in fitting_points:
-        if swiped_lines % 2 == 1:
-            row = [arr - [0, robot_position.y, 0] for arr in row]
-            neg_num = min((n[1] for n in row if n[1] < 0), key=lambda x: abs(x))
-        
-            pos_num = next(n[1] for n in row if n[1] > 0)
-            for i in range(len(row)):
-                if row[i][1] == neg_num or row[i][1] == pos_num:
-                    temp = []
-                    row[i][1] += robot_position.y
-                    for element in row[i][:2]:
-                        temp.append(element)
-                    fitting_centroids.append(temp)
-        else:
-            row = [[arr[0], robot_position.y - arr[1], arr[2]] for arr in row]
-            print(row)
-            neg_num = min((n[1] for n in row if n[1] < 0), key=lambda x: abs(x))
-        # print("neg", neg_num)
-            pos_num = next(n[1] for n in row if n[1] > 0)
-            for i in range(len(row)):
-                if row[i][1] == neg_num or row[i][1] == pos_num:
-                    temp = []
-                    row[i][1] = -(row[i][1] - robot_position.y)
-                    for element in row[i][:2]:
-                        temp.append(element)
-                    fitting_centroids.append(temp)
-        
+        # sort the detected centroids with y value from small to large
+        global last_centroids
+        distances = [(sublist, (sublist[1]-robot_position.y)) for sublist in row if len(sublist) > 1]
+        sorted_distances = sorted(distances, key=lambda x: abs(x[1]))
 
+        if len(sorted_distances) >= 2 and len(sorted_distances) % 2 == 1: #pass if the number of detected centroids is odd for now
+            pass
+        elif len(sorted_distances) >= 2 and len(sorted_distances) % 2 == 0:
+            closest_elements = [sorted_distances[0][0], sorted_distances[1][0]]
+        elif len(sorted_distances) == 1:
+            difference_1 = abs(last_centroids[0][1] - sorted_distances[0][0][1])
+            difference_2 = abs(last_centroids[1][1] - sorted_distances[0][0][1])
+            if difference_1 > difference_2:
+                closest_elements = [sorted_distances[0][0], last_centroids[0]]
+            else:
+                closest_elements = [sorted_distances[0][0], last_centroids[1]]
+        elif len(sorted_distances) == 0:
+            closest_elements = last_centroids
+        closest_elements = sorted(closest_elements, key=lambda x:x[1])
+        
+        if closest_elements:
+            # for i in range(len(closest_elements)):
+            for element in closest_elements:
+                # element[1] += robot_position.y
+                fitting_centroids.append(element[:2])
+        last_centroids = closest_elements
+            
     flat_data = [item for sublist in fitting_centroids for item in sublist]
     list_message = Float32MultiArray(data=flat_data)
     return cluster_marker, list_message, num_clusters
     
-
+def write_points_to_file(points, filename):
+    """Write each point's coordinates to a text file, one per line."""
+    with open(filename, 'w') as file:
+        for point in points:
+            # Write the x, y, z coordinates to the file, separated by commas
+            file.write(f"{point[0]}, {point[1]}, {point[2]}\n")
+            # file.write(f"{point}\n")
+        print(f"Points have been written to {filename}")
 def kmeans_filter(centroids, threshold):
     merge = True
     while merge:
@@ -298,125 +306,7 @@ def kmeans_filter(centroids, threshold):
             print("quit")
     
     return centroids
-def calculate_mae(ground_truth, fitting_points):
-    total_distance = 0
-    max_value = 0
-    error = []
-    fitting_centroids = []
-    for row in fitting_points:
-        for i in range(len(row)):
-            temp = []
-            for element in row[i][:2]:
-                temp.append(element)
-                fitting_centroids.append(temp)
-    for i in range(len(ground_truth)):
-        item = ground_truth[i][:2]
-        distances = []
-        for centroids in fitting_centroids:
-            distance = np.linalg.norm(np.array(item)-np.array(centroids))
-            distances.append(distance)
-        min_distance = min(distances)
-        if min_distance > max_value:
-            max_value = min_distance
-        error.append(min_distance)
-        total_distance += min_distance
-    error = np.array(error)
-    mae = np.mean(error)
-    std = np.std(error)
-    print("max deviation:", max_value)
-    return std, mae
-def calculate_rmse(ground_truth, fitting_points):
-    total_distance = 0
-    fitting_centroids = []
-    for row in fitting_points:
-        # print("neg & pos numbers:", neg_num, pos_num)
-        for i in range(len(row)):
-            temp = []
-            for element in row[i][:2]:
-                temp.append(element)
-                fitting_centroids.append(temp)
-    # print("length of fitting centroids:", len(fitting_centroids))
-    for i in range(len(ground_truth)):
-        item = ground_truth[i][:2]
-        distances = []
-        for centroids in fitting_centroids:
-            distance = np.linalg.norm(np.array(item)-np.array(centroids))
-            distances.append(distance)
-        min_distance = min(distances)
-        total_distance += min_distance ** 2
-    return np.sqrt(total_distance / len(ground_truth))
-def turning(initial_orientation, robot_orientation, initial_position, robot_position):
-    initial_euler = tf.transformations.euler_from_quaternion([initial_orientation.x, initial_orientation.y, initial_orientation.z, initial_orientation.w ])
-    now_euler = tf.transformations.euler_from_quaternion([robot_orientation.x, robot_orientation.y, robot_orientation.z, robot_orientation.w])
-    turn_degree = now_euler[2]-initial_euler[2]
-    print("turn degree", turn_degree)
-    right_turn_msg = Twist()
-    right_turn_msg.angular.z = 0.5  # Angular velocity for turning
-    left_turn_msg = Twist()
-    left_turn_msg.angular.z = -0.5
 
-    straight_msg = Twist()
-    straight_msg.linear.x = 0.2
-    straight_distance = 1.524
-    global mode
-    global j
-    global i
-    global swiped_lines
-    global switched_line
-    global number_of_rows
-    if number_of_rows == 1:
-        print("turning right")
-        if mode == 1 and -1.571 <= turn_degree <= 0.1:
-            rospy.loginfo("Turning")
-                # 20 iterations for turning
-            endvel_publish.publish(right_turn_msg)
-        # print(mode)
-        if mode == 1 and -3.12 <= turn_degree <= -1.571:
-            rospy.loginfo("Straight")
-            endvel_publish.publish(straight_msg)
-            print("robot y", robot_position.y)
-            print("initial y", initial_position.y)
-            if np.abs(robot_position.y - initial_position.y) >= straight_distance:
-                mode = 2
-            print(mode)
-        if mode == 2 and -3.12 <= turn_degree <= -1.571:
-            rospy.loginfo("Turning again")
-            endvel_publish.publish(right_turn_msg)
-        if  turn_degree < -3.12 or turn_degree > 3.12:    
-            stop_msg = Twist()
-            stop_msg.linear.x = 0
-            mode = 0
-            swiped_lines += 1
-            switched_line = 1
-            number_of_rows = 0
-            j = 0
-            endvel_publish.publish(stop_msg)
-    else:
-        print("turning left")
-        if mode == 1 and 1.571 <= turn_degree <= 3.14 or -3.14 <= turn_degree <= -1.571:
-            rospy.loginfo("Turning")
-                # 20 iterations for turning
-            endvel_publish.publish(left_turn_msg)
-        if mode == 1 and -1.571 <= turn_degree <= -0.02:
-            rospy.loginfo("Straight")
-            endvel_publish.publish(straight_msg)
-            if np.abs(robot_position.y - initial_position.y) >= straight_distance:
-                mode = 2
-            print(mode)
-        if mode == 2 and -1.571 <= turn_degree <= -0.02:
-            rospy.loginfo("Turning again")
-            endvel_publish.publish(left_turn_msg)
-        if -0.02 < turn_degree < 0.1: #or turn_degree  -3.1:    
-            stop_msg = Twist()
-            stop_msg.linear.x = 0
-            mode = 0
-            swiped_lines += 1
-            switched_line = 1
-            number_of_rows = 1
-            # i = 1
-            j = 0
-            endvel_publish.publish(stop_msg)
-        # rospy.signal_shutdown('End of lane Detected')
 def quaternion_to_rotation_matrix(quaternion):
     # Convert a Quaternion to a 3x3 rotation matrix
     x, y, z, w = quaternion[0], quaternion[1], quaternion[2], quaternion[3]
@@ -439,7 +329,9 @@ if __name__ == "__main__":
     change_lane_publisher = rospy.Publisher('/switch_lines', Int32, queue_size=1)
     endvel_publish = rospy.Publisher('/cmd_vel', Twist, queue_size=1)
     rospy.Subscriber("/odometry/filtered", Odometry, odometry_callback,queue_size= 1)
+    service_client = rospy.ServiceProxy('point_turn', PointTurn)
+    # rospy.Subscriber("/odometry/filtered_zeroed", Odometry, odometry_callback,queue_size= 1)
+    # rospy.Subscriber("/odom", Odometry, odometry_callback,queue_size= 1)
     rospy.Subscriber("/points_above_plane", PointCloud2, lidar_callback, marker_pub, queue_size= 1)
-    
     
     rospy.spin()

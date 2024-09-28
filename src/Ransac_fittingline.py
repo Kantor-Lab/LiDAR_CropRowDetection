@@ -22,9 +22,10 @@ from geometry_msgs.msg import Twist
 from sklearn.metrics import r2_score
 import tf
 import math
+from change_odom import save_list_to_csv
 angle_error = []
 fitting_centroids = None
-num_clusters = None
+
 global_robot_position = None
 i = 1
 initial_position = None
@@ -37,7 +38,7 @@ total_mae = []
 total_std = []
 total_rmse = []
 max_value = 0
-def odom_position(msg):
+def odom_position(msg): #get robot update position and orientation
     global i 
     global initial_position
     global initial_orientation
@@ -49,10 +50,10 @@ def odom_position(msg):
         global global_robot_position
     # Extract the robot's position from the odometry message
         global_robot_position = msg.pose.pose.position
-        global_robot_position.x += 1
+        # global_robot_position.x += 1
         global robot_orientation
         robot_orientation = msg.pose.pose.orientation
-def mode(msg):
+def mode(msg): #mode for lane-switching
     global mode
     mode = msg.data
 def line_function(msg):
@@ -61,20 +62,16 @@ def line_function(msg):
 def swiped_lines_function(msg):
     global swiped_lines
     swiped_lines = msg.data
-def list_callback(msg):
+def list_callback(msg): #receiving detected centroids list
     temp = []
     data = msg.data
+    
     for i in range(0, len(data), 2):
-        row = data[i:i + 2]
-        temp.append(row)
+        row = list(data[i:i + 2])  # Convert tuple to list
+        row.append(0.0)  # Add a 0 to each row
+        temp.append(tuple(row))
     global fitting_centroids
     fitting_centroids = temp
-    # print("centroids:", temp)
-    
-def centroids_num(msg):
-    global num_clusters
-    num_clusters = msg.data
-
 def publish_lines_callback():
     line_marker = Marker()
     line_marker.header.frame_id = 'velodyne'
@@ -103,9 +100,6 @@ def publish_lines_callback():
     global robot_orientation
     if robot_orientation is None:
         return
-    global num_clusters
-    if num_clusters is None:
-        return
     global mode
     if mode is None:
         return
@@ -124,8 +118,10 @@ def publish_lines_callback():
 
         fitting_centroids = np.array(fitting_centroids)
         print("robot.position1",robot_position.x)
+        now_rotation = quaternion_to_rotation_matrix([robot_orientation.x, robot_orientation.y, robot_orientation.z, robot_orientation.w])
         initial_euler = tf.transformations.euler_from_quaternion([initial_orientation.x, initial_orientation.y, initial_orientation.z, initial_orientation.w ])
         now_euler = tf.transformations.euler_from_quaternion([robot_orientation.x, robot_orientation.y, robot_orientation.z, robot_orientation.w])
+        # print("now euler", now_euler)
         line_marker = Marker()
         line_marker.header.frame_id = 'velodyne'
         line_marker.type = Marker.LINE_LIST
@@ -139,27 +135,29 @@ def publish_lines_callback():
         line_marker.pose.orientation.y = 0.0
         line_marker.pose.orientation.z = 0.0
         line_marker.pose.orientation.w = 1.0 
+        T = np.array([robot_position.x, robot_position.y, robot_position.z])
         if swiped_lines % 2 == 1:
-            left_x1 = fitting_centroids[-2:][1][0] - robot_position.x
-            left_y1 = fitting_centroids[-2:][1][1] - robot_position.y
+            left_x1 = global_to_local(fitting_centroids[-2:][1], T, now_rotation)[0] 
+            left_y1 = fitting_centroids[-2:][1][1] - robot_position.y 
             left_x2 = 0
-            left_y2 = fitting_centroids[-2:][1][1] - robot_position.y
-            right_x1 = fitting_centroids[-2:][0][0] - robot_position.x
-            right_y1 = fitting_centroids[-2:][0][1] - robot_position.y
+            left_y2 = fitting_centroids[-2:][1][1] - robot_position.y 
+            right_x1 = global_to_local(fitting_centroids[-2:][0], T, now_rotation)[0]
             right_x2 = 0
-            right_y2 = fitting_centroids[-2:][0][1] - robot_position.y
-            min_left = 0.1
-            min_right = 0.1
+            right_y1 = fitting_centroids[-2:][0][1] - robot_position.y 
+            right_y2 = fitting_centroids[-2:][0][1] - robot_position.y 
+            line_end = 1.1 #determine when do you want to start fitting a line (e.g. between furthest detected and line end parameter)
+            min_left = line_end
+            min_right = line_end
             min_left_index = None
             min_right_index = None
             for i in range(0, len(fitting_centroids) - 1 , 2):
-                    local_left_x = fitting_centroids[i + 1][0] - robot_position.x
-                    local_right_x = fitting_centroids[i][0] - robot_position.x
-                    if -1.0 < local_left_x < min_left:
+                    local_left_x = global_to_local(fitting_centroids[i + 1], T, now_rotation)[0] 
+                    local_right_x = global_to_local(fitting_centroids[i], T, now_rotation)[0] 
+                    if 0.0 < local_left_x < min_left:
                         min_left_index = i + 1
                         min_left = local_left_x
                         left_x2 = local_left_x
-                    if -1.0 < local_right_x < min_right:
+                    if 0.0 < local_right_x < min_right: #
                         min_right_index = i
                         min_right = local_right_x
                         right_x2 = local_right_x
@@ -172,55 +170,35 @@ def publish_lines_callback():
                 print("left")
                 left_line_centroids = [fitting_centroids[index]for index in range(min_left_index, len(fitting_centroids), 2)]
                 left_line_centroids = sorted(left_line_centroids, key=lambda x: x[0])
-                reg_left, m_left, b_left = Ransac_line_fit(left_line_centroids)
-                angle_radians = math.atan(m_left)
-                angle_degrees = math.degrees(angle_radians)
-                angle_degrees = np.abs(angle_degrees)
-                if angle_degrees > max_value:
-                    max_value = angle_degrees
-                angle_error.append(angle_degrees)
-                left_x1 = left_line_centroids[-1][0] - robot_position.x 
-                left_y1 = left_line_centroids[-1][1] - robot_position.y
-                left_y2 = left_line_centroids[0][1] - robot_position.y
-                # print("left_x1", left_x1)
-                # left_y1 = reg_left.predict(np.array(left_x1).reshape(-1,1))[0]- robot_position.y
-                # left_y2 = reg_left.predict(np.array(left_x2).reshape(-1,1))[0]- robot_position.y
-                # print("left_y1",left_y1)
-                # print("left_y2",left_y2)
-                publish_fitting_line(left_line_centroids, reg_left, line_marker)
-
-                predicted = [(left_x1 + robot_position.x , left_y1 + robot_position.y), (left_x2 + robot_position.x, left_y2 +robot_position.y)]
-                ground_truth = [(left_x1+robot_position.x, 1.524), ( left_x2+ robot_position.x, 1.524)]
+                if len(left_line_centroids) > 5:
+                    reg_left, m_left, b_left = Ransac_line_fit(left_line_centroids)
+                    publish_fitting_line(left_line_centroids, reg_left, line_marker)
+                left_x1 = np.mean([global_to_local(point, T, now_rotation)[0] for point in left_line_centroids[-20:]], axis=0)
                 
-                
-                calculate_line_mae(ground_truth, predicted)
-                # calculate_line_rmse(ground_truth, predicted)
-
+                # ransac fitting 
+                left_y1 = reg_left.predict(np.array(left_x1).reshape(-1,1))[0]- robot_position.y
+                left_y2 = reg_left.predict(np.array(left_x2).reshape(-1,1))[0]- robot_position.y
+                #left_y1 = np.mean([elem[1] for elem in left_line_centroids[-20:]])- robot_position.y 
+                #left_y2 = left_line_centroids[0][1] - robot_position.y
             if min_right_index is not None:
                 print("right")   
                 right_line_centroids = [fitting_centroids[index]for index in range(min_right_index, len(fitting_centroids), 2)]
                 right_line_centroids = sorted(right_line_centroids, key=lambda x: x[0])
-                reg_right, m_right, b_right = Ransac_line_fit(right_line_centroids)
-                angle_radians = math.atan(m_right)
-                angle_degrees = math.degrees(angle_radians)
-                angle_degrees = np.abs(angle_degrees)
-                if angle_degrees > max_value:
-                    max_value = angle_degrees
-                angle_error.append(angle_degrees)
-                right_x1 = right_line_centroids[-1][0] - robot_position.x 
-                right_y1 = right_line_centroids[-1][1] - robot_position.y 
-                right_y2 = right_line_centroids[0][1] - robot_position.y 
-                # right_y1 = reg_right.predict(np.array(right_x1).reshape(-1,1))[0] - robot_position.y
-                # right_y2 = reg_right.predict(np.array(right_x2).reshape(-1,1))[0] - robot_position.y
-                publish_fitting_line(right_line_centroids, reg_right, line_marker)
+                if len(right_line_centroids) > 5:
+                    reg_right, m_right, b_right = Ransac_line_fit(right_line_centroids)
+                    publish_fitting_line(right_line_centroids, reg_right, line_marker)
+            
+                right_x1 = np.mean([global_to_local(point, T, now_rotation)[0] for point in right_line_centroids[-20:]], axis=0)
+                
+                # ransac line fitting
+                right_y1 = reg_right.predict(np.array(right_x1).reshape(-1,1))[0] - robot_position.y
+                right_y2 = reg_right.predict(np.array(right_x2).reshape(-1,1))[0] - robot_position.y
+                #right_y1 = np.mean([elem[1] for elem in right_line_centroids[-20:]])- robot_position.y 
+                #right_y2 = right_line_centroids[0][1] - robot_position.y
 
-                predicted = [(right_x1 + robot_position.x , right_y1 + robot_position.y), (right_x2 + robot_position.x, right_y2 +robot_position.y)]
-                ground_truth = [(right_x1+robot_position.x, 0.762), ( right_x2+ robot_position.x, 0.762)]
-                calculate_line_mae(ground_truth, predicted)
-        else:
+        else: # robot has switched line and going back
             print("second line")
             left_x1 = -fitting_centroids[-2:][1][0] + robot_position.x
-            print("left_x1", fitting_centroids[-2:][1][0])
             left_y1 = -fitting_centroids[-2:][1][1] + robot_position.y
             left_x2 = 0
             left_y2 = -fitting_centroids[-2:][1][1] + robot_position.y
@@ -233,14 +211,13 @@ def publish_lines_callback():
             min_left_index = None
             min_right_index = None
             for i in range(0, len(fitting_centroids) - 1 , 2):
-        
                 local_left_x = -fitting_centroids[i + 1][0] + robot_position.x
                 local_right_x = -fitting_centroids[i][0] + robot_position.x
-                if -1 < local_left_x < min_left:
+                if 0.0 < local_left_x < min_left:
                     min_left_index = i + 1
                     min_left = local_left_x
                     left_x2 = local_left_x
-                if -1 < local_right_x < min_right:
+                if 0.0 < local_right_x < min_right:
                     min_right_index = i
                     min_right = local_right_x
                     right_x2 = local_right_x
@@ -255,22 +232,11 @@ def publish_lines_callback():
                 left_line_centroids = sorted(left_line_centroids, key=lambda x: x[0])
                 reg_left, m_left, b_left = Ransac_line_fit(left_line_centroids)
                 left_x1 = -left_line_centroids[0][0] + robot_position.x + 1
-                # print("robot position.x:", robot_position.x)
-                # print("left line centroids:", left_line_centroids[0][0])
-                # print("left x1", left_x1)
-                left_y1 = -left_line_centroids[-1][1] + robot_position.y
-                left_y2 = -left_line_centroids[0][1] + robot_position.y
-                # left_y1 = reg_left.predict(np.array(left_x1).reshape(-1,1))[0] - robot_position.y
-                # left_y2 = reg_left.predict(np.array(left_x2).reshape(-1,1))[0] - robot_position.y
+                #left_y1 = -left_line_centroids[-1][1] + robot_position.y
+                #left_y2 = -left_line_centroids[0][1] + robot_position.y
+                left_y1 = -reg_left.predict(np.array(left_x1).reshape(-1,1))[0] + robot_position.y
+                left_y2 = -reg_left.predict(np.array(left_x2).reshape(-1,1))[0] + robot_position.y
                 publish_fitting_line(left_line_centroids, reg_left, line_marker)
-
-                predicted = [(left_x1 + robot_position.x , left_y1 + robot_position.y), (left_x2 + robot_position.x, left_y2 +robot_position.y)]
-                # print("left:", left_y1+robot_position.y)
-                ground_truth = [(left_x1+robot_position.x, 1.133716), ( left_x2+ robot_position.x, 1.133716)]
-                
-                
-                # calculate_line_mae(ground_truth, predicted)
-                # calculate_line_rmse(ground_truth, predicted)
 
             if min_right_index is not None:
                 print("right")   
@@ -278,16 +244,11 @@ def publish_lines_callback():
                 right_line_centroids = sorted(right_line_centroids, key=lambda x: x[0])
                 reg_right, m_right, b_right = Ransac_line_fit(right_line_centroids)
                 right_x1 = -right_line_centroids[0][0] + robot_position.x + 1
-                right_y1 = -right_line_centroids[-1][1] + robot_position.y 
-                right_y2 = -right_line_centroids[0][1] + robot_position.y 
-                # right_y1 = reg_right.predict(np.array(right_x1).reshape(-1,1)) - robot_position.y
-                # right_y2 = reg_right.predict(np.array(right_x2).reshape(-1,1)) - robot_position.y
+                #right_y1 = -right_line_centroids[-1][1] + robot_position.y 
+                #right_y2 = -right_line_centroids[0][1] + robot_position.y 
+                right_y1 = -reg_right.predict(np.array(right_x1).reshape(-1,1)) + robot_position.y
+                right_y2 = -reg_right.predict(np.array(right_x2).reshape(-1,1)) + robot_position.y
                 publish_fitting_line(right_line_centroids, reg_right, line_marker)
-
-                predicted = [(right_x1 + robot_position.x , right_y1 + robot_position.y), (right_x2 + robot_position.x, right_y2 +robot_position.y)]
-                ground_truth = [(right_x1+robot_position.x, 0.633716), ( right_x2+ robot_position.x, 0.633716)]   
-                # calculate_line_mae(ground_truth, predicted)
-                # calculate_line_rmse(ground_truth, predicted)
         LINE_pub.publish(line_marker)
 
     
@@ -297,10 +258,6 @@ def publish_lines_callback():
                                         x2=right_x2 , y2=right_y2)
             line_2 = line_2pts(x1=left_x1, y1=left_y1,
                                         x2=left_x2, y2=left_y2)
-            # line_1 = line_2pts(x1=2, y1=-0.35,
-            #                             x2=-1 , y2=-0.35)
-            # line_2 = line_2pts(x1=2, y1=0.35,
-            #                             x2=-1, y2=0.35)
             msg.lines = [line_1, line_2]
             
             msg.num_lines = 2
@@ -308,68 +265,6 @@ def publish_lines_callback():
             msg.header = Header(stamp=rospy.Time.now(), frame_id="Lidar_detect")
             lines_publish.publish(msg)
             
-            global total_mae
-            global total_std
-        print("robot_position:", robot_position.x)
-        # if robot_position.x > 20:
-        #     print("overall mae between lines:", np.mean(total_mae))
-        #     print("overall std between lines:", np.mean(total_std))
-        #     print("max deviation from ground truth:", max_value)
-        #     print("overall rmse between lines:", np.mean(total_rmse))
-        #     if robot_position.x > 30:
-        #         error = np.array(angle_error)
-        #         mae = np.mean(error)
-        #         std = np.std(error)
-        #         print(max_value)
-        #         print("MAE & std:", mae, std)
-def calculate_line_mae(ground_truth, predicted):
-    global total_mae
-    global total_std
-    global max_value
-    error = []
-    num_points = 20
-    x_gt, y_gt = zip(*ground_truth)
-    x_pred, y_pred = zip(*predicted)
-
-    x_interp_gt = np.linspace(min(x_gt), max(x_gt), num_points)
-    y_interp_gt = np.interp(x_interp_gt, x_gt, y_gt)
-        
-    x_interp_pred = np.linspace(min(x_pred), max(x_pred), num_points)
-    y_interp_pred = np.interp(x_interp_pred, x_pred, y_pred)
-
-    total_distance = 0
-    for i in range(len(y_interp_pred)):
-        ab_dis = np.abs(y_interp_pred[i]-y_interp_gt[i])
-        # total_distance += ab_dis
-        error.append(ab_dis)
-        if ab_dis > max_value:
-            max_value = ab_dis
-    
-    mae = np.mean(error)
-    std = np.std(error)
-
-    total_mae.append(mae)
-    total_std.append(std) 
-def calculate_line_rmse(ground_truth, predicted):
-    global total_rmse
-    error = []
-    num_points = 20
-    x_gt, y_gt = zip(*ground_truth)
-    x_pred, y_pred = zip(*predicted)
-
-    x_interp_gt = np.linspace(min(x_gt), max(x_gt), num_points)
-    y_interp_gt = np.interp(x_interp_gt, x_gt, y_gt)
-        
-    x_interp_pred = np.linspace(min(x_pred), max(x_pred), num_points)
-    y_interp_pred = np.interp(x_interp_pred, x_pred, y_pred)
-
-    total_distance = 0
-    for i in range(len(y_interp_pred)):
-        ab_dis = np.abs(y_interp_pred[i]-y_interp_gt[i])
-        # total_distance += ab_dis
-        error.append(ab_dis ** 2)
-    mse = np.mean(error)
-    total_rmse.append(np.sqrt(mse))
 def Ransac_line_fit(centroids):
     X = []
     Y = []
@@ -377,14 +272,30 @@ def Ransac_line_fit(centroids):
         X.append(row[0])
         Y.append(row[1])
     X= np.array(X).reshape(-1,1)
-    # print("x", X)
     Y = np.array(Y)
-    # print("Y", Y)
-    if len(X) > 4:
-        reg = RANSACRegressor(min_samples=5, random_state=0).fit(X,Y)
+    reg = RANSACRegressor(min_samples=2, random_state=0,max_trials=1000).fit(X,Y)
     slope = reg.estimator_.coef_[0]
     bias = reg.estimator_.intercept_
     return reg, slope, bias
+    
+def quaternion_to_rotation_matrix(quaternion):
+    # Convert a Quaternion to a 3x3 rotation matrix
+    x, y, z, w = quaternion[0], quaternion[1], quaternion[2], quaternion[3]
+
+    rotation_matrix = np.array([
+        [1 - 2*y*y - 2*z*z, 2*x*y - 2*z*w, 2*x*z + 2*y*w],
+        [2*x*y + 2*z*w, 1 - 2*x*x - 2*z*z, 2*y*z - 2*x*w],
+        [2*x*z - 2*y*w, 2*y*z + 2*x*w, 1 - 2*x*x - 2*y*y]
+    ])
+
+    return rotation_matrix
+def global_to_local(global_point, local_origin, local_orientation):
+    translated_point = global_point - local_origin
+    
+    # Rotate the point
+    local_point = np.dot(local_orientation.T, translated_point)
+    
+    return local_point
 def publish_fitting_line(centroids, reg, line_marker):
     
     if len(centroids) > 4:
@@ -401,34 +312,28 @@ def publish_fitting_line(centroids, reg, line_marker):
         p2.x = p2.x.reshape(-1,1)
         p2.y = reg.predict(p2.x)[0]
         p2.z = 0.2
-        
-        # print("p2 - p1", p2.x - p1.x)
-                # Add the points to the marker
+    
         line_marker.points.append(p1)
         line_marker.points.append(p2)
-        # LINE_pub.publish(line_marker)
-    # return p1, p2
+
 if __name__ == "__main__":
     
     rospy.init_node("ransac_line_fitting")
-    # # while not rospy.is_shutdown():
-    # #     publish_lines(fitting_points=fitting_points)
+
     LINE_pub = rospy.Publisher("/line_marker", Marker, queue_size=1)
     lines_publish = rospy.Publisher("/lines", line_list, queue_size=10)
     initialvel_publish = rospy.Publisher('/cmd_vel', Twist, queue_size=1)
-    # # rospy.Subscriber("/points_above_plane", PointCloud2, lidar_callback, marker_pub)
     rospy.Subscriber("/marker_list", Float32MultiArray, list_callback, queue_size= 1)
     rospy.Subscriber("/modes", Int32, mode, queue_size= 1)
     rospy.Subscriber("/line_function", Int32, line_function, queue_size= 1)
     rospy.Subscriber("/swiped_lines", Int32, swiped_lines_function, queue_size= 1)
-    rospy.Subscriber("/number_of_centroids", Int32, centroids_num, queue_size= 1)
     rospy.Subscriber("/odometry/filtered", Odometry, odom_position,queue_size= 1)
+    # rospy.Subscriber("/odometry/filtered_zeroed", Odometry, odom_position,queue_size= 1)
     # rospy.Subscriber("/odom", Odometry, odom_position,queue_size= 1)
     rate = rospy.Rate(5)
     while not rospy.is_shutdown():
         publish_lines_callback()
         rate.sleep()
-        # publish_3d_points()
     rospy.spin()
 
 #     

@@ -14,16 +14,20 @@ def line_callback(msg):
         rospy.logwarn("Expected exactly 2 lines, got {}".format(msg.num_lines))
         return
     
+    
     # Extract line endpoints
     line1 = msg.lines[0]
     line2 = msg.lines[1]
     
+    # offset1 = (line1.y1 + line2.y1)/2#0.1
+
+    # line1.y1 += offset1
+    # line2.y1 += offset1
+    # offset2 = (line1.y2 + line2.y2)/2#0.1
+
+    # line1.y2 += offset2
+    # line2.y2 += offset2
     # Calculate midpoints
-    # offset = 0.1
-
-    # line1.y1 -= offset
-    # line2.y1 -= offset
-
     mx1, my1 = midpoint(line1.x1, line1.y1, line2.x1, line2.y1)
     mx2, my2 = midpoint(line1.x2, line1.y2, line2.x2, line2.y2)
     # mx1, my1 = midpoint(line1.x1 + 3, line1.y1, line2.x1 + 3, line2.y1)

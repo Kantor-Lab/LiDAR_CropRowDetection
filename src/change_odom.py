@@ -8,11 +8,12 @@ from std_msgs.msg import Header
 import numpy as np
 import csv
 import os
+from tf.transformations import euler_from_quaternion
 i = 1
 initial_position = None
 markers = []
 robot_position = None
-total_mae = []
+total_distmae = []
 total_std = []
 robot_location = []
 def global_to_local_odometry(global_odom):
@@ -76,19 +77,25 @@ def odom_position(msg):
         # robot_position.x = -robot_position.x + initial_position.x
         # robot_position.y = -robot_position.y + initial_position.y
         # robot_position.z = -robot_position.z + initial_position.z
-        global total_mae
+        global total_distmae
         global robot_location
-        robot_location.append([msg.pose.pose.position.y, msg.pose.pose.position.x])
-        gt = (0.765*3)/2
-        total_mae.append(np.abs(msg.pose.pose.position.y - gt))
+        
+        quaternion = [msg.pose.pose.orientation.x, msg.pose.pose.orientation.y, msg.pose.pose.orientation.z, msg.pose.pose.orientation.w]
+        _, _, yaw = euler_from_quaternion(quaternion)
+        # print("yaw", yaw)
+        robot_location.append([msg.pose.pose.position.y, msg.pose.pose.position.x, yaw])
+        location_gt = (0.762*3)/2
+        total_distmae.append(np.abs(msg.pose.pose.position.y - 0.381))
+        # total_distmae.append(np.abs(msg.pose.pose.position.x + 48.931))
+        # total_anglemae.append(np)
         p1 = Point()
-        p1.x = msg.pose.pose.position.x
-        p1.y = msg.pose.pose.position.y + 0.762
+        p1.x = msg.pose.pose.position.x #+ 0.762
+        p1.y = msg.pose.pose.position.y #+ 0.762
         p1.z = 0 
         new_centroids.append(p1)
         p2 = Point()
-        p2.x = msg.pose.pose.position.x
-        p2.y = msg.pose.pose.position.y - 0.762
+        p2.x = msg.pose.pose.position.x #- 0.762
+        p2.y = msg.pose.pose.position.y #- 0.762
         p2.z = 0 
         new_centroids.append(p2)
         global markers
@@ -96,12 +103,23 @@ def odom_position(msg):
         for centroids in markers:
             for point in centroids:
                 cluster_marker.points.append(point)
-        if msg.pose.pose.position.x > 100:
-            # print("odometry MAE is:", np.mean(total_mae))
-            # print("odometry std is:", np.std(total_mae))
+        # if msg.pose.pose.position.y > 222:
+        # if msg.pose.pose.position.x > 20:
+        # # if msg.pose.pose.position.y < 4651645:
+        # if msg.pose.pose.position.y < 6.3 and msg.pose.pose.position.x < 3.5:
+        # if msg.pose.pose.position.y < 6.3 and msg.pose.pose.position.x < 3.0:
+        # if msg.pose.pose.position.x > 100:
+        # print("odometry MAE is:", np.min(total_distmae),np.mean(total_distmae))
+        # print("odometry std is:", np.std(total_distmae))
+        #     save_list_to_csv('MPC_maturesoybean_0cm.csv', robot_location, directory= "/home/ruijiliu/vision_ws/src/Lidar_RowDetect/mae_results/icra_results")
+            # save_list_to_csv('MPC_maturesoybean_30cm.csv', robot_orientation, directory= "/home/ruijiliu/vision_ws/src/Lidar_RowDetect/mae_results/icra_results")
+            # save_list_to_csv('soybean4_odom.csv', robot_location, directory= "/home/ruijiliu/vision_ws/src/Lidar_RowDetect/mae_results/drone_map_txt")
             # save_list_to_csv('PP_deviate_-10cm.csv', np.random.random(10), directory= "/home/ruijiliu/vision_ws/src/Lidar_RowDetect/mae_results")
-            save_list_to_csv('0.2_covariance_corn_old.csv', robot_location, directory= "/home/ruijiliu/vision_ws/src/Lidar_RowDetect/mae_results")
+            # save_list_to_csv('0.2_covariance_corn_old.csv', robot_location, directory= "/home/ruijiliu/vision_ws/src/Lidar_RowDetect/mae_results")
             # save_list_to_csv('PP_deviate_0cm_corn.csv', robot_location, directory= "/home/ruijiliu/vision_ws/src/Lidar_RowDetect/mae_results")
+            # save_list_to_csv('yc_visual_odom.csv', robot_location, directory= "/home/ruijiliu/vision_ws/src/Lidar_RowDetect/mae_results/icra_results")
+            # save_list_to_csv('curve_corn_odom.csv', robot_location, directory= "/home/ruijiliu/vision_ws/src/Lidar_RowDetect/mae_results/icra_results")
+            # save_list_to_csv('ms_switch_odom.csv', robot_location, directory= "/home/ruijiliu/vision_ws/src/Lidar_RowDetect/mae_results/icra_results")
         marker_pub.publish(cluster_marker)
 
 if __name__ == '__main__':

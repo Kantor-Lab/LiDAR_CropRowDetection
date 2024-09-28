@@ -18,7 +18,7 @@ def lidar_callback(msg, marker_pub):
     pc_array = np.array(list(pc_data))
 
     # Perform K-means clustering
-    num_clusters = 4  # Adjust the number of clusters as needed
+    num_clusters = 2  # Adjust the number of clusters as needed
     kmeans = KMeans(n_clusters=num_clusters, n_init= 1, tol = 1e-2, max_iter= 10, random_state=0).fit(pc_array)
 
     # Get cluster labels for each point
@@ -70,7 +70,7 @@ def lidar_callback1(msg, marker_pub1):
     #     centroid = np.mean(cluster_points, axis=0)
     #     cluster_centroids_points.append(centroid)
     # Perform K-means clustering
-    num_clusters = 5  # Adjust the number of clusters as needed
+    num_clusters = 4  # Adjust the number of clusters as needed
     # kmeans = KMeans(n_clusters=num_clusters, n_init= 'auto', max_iter = 500, random_state=0).fit(pc_array)
 
     # # Get cluster labels for each point
@@ -88,7 +88,7 @@ def lidar_callback1(msg, marker_pub1):
     # cluster_labels, cluster_centroids_points = kmeans(X=X, num_clusters=num_clusters, distance='euclidean', device=torch.device('cuda:0'))
 
     cluster_centroids_points = sorted(cluster_centroids_points, key=lambda x: x[1])
-    cluster_centroids_points = kmeans_filter(centroids=cluster_centroids_points, num_clusters=num_clusters, threshold= 0.5)
+    cluster_centroids_points = kmeans_filter(centroids=cluster_centroids_points, num_clusters=num_clusters, threshold= 0.3)
     # print(len(cluster_centroids_points))
     # print(cluster_centroids_points)
     cluster_centroids = Marker()

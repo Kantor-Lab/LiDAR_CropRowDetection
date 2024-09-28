@@ -4,7 +4,7 @@ import rospy
 from visualization_msgs.msg import Marker, MarkerArray
 from std_msgs.msg import Header
 from geometry_msgs.msg import Point
-
+import numpy as np
 def marker_array_publisher():
     rospy.init_node('marker_array_publisher', anonymous=True)
     marker_pub = rospy.Publisher('/crop_gt', MarkerArray, queue_size=10)
@@ -25,20 +25,33 @@ def marker_array_publisher():
     row_spacing=0.762
 
     crop_location = []
-    for row in range(-8,8):
+    # for row in range(-8,8):
+    #     # if row == 4 or row == -1:
+    #     #     pass
+    #     # else:
+    #     y = row * row_spacing
+    #     z = 0
+    #     for bush in range(0, bushes_per_row):
+    #         x = bush * bush_spacing
+    #         temp = []
+    #         temp.append(x)
+    #         temp.append(y)
+    #         temp.append(z)
+    #         crop_location.append(temp)
+    for row in range(-4,4):
         # if row == 4 or row == -1:
         #     pass
         # else:
-        y = row * row_spacing
+        # y = row * row_spacing
         z = 0
         for bush in range(0, bushes_per_row):
             x = bush * bush_spacing
+            y = 6 * np.sin((x*2*np.pi)/100) + row*row_spacing
             temp = []
             temp.append(x)
             temp.append(y)
             temp.append(z)
             crop_location.append(temp)
-
     while not rospy.is_shutdown():
         marker_array = MarkerArray()
         header = Header(stamp=rospy.Time.now(), frame_id="velodyne")
