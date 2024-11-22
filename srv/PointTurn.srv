@@ -1,4 +1,0 @@
-# PointTurn.srv
-bool left  # true for left turn, false for right turn
----
-bool success  # Indicates if the operation was successful
