@@ -23,7 +23,8 @@ install(TARGETS cpp_node
 
 # Install Python scripts
 install(PROGRAMS
-    scripts/python_node.py scripts/Lidar_FOV.py
+    scripts/python_node.py scripts/Lidar_FOV.py scripts/Virtual_groundplane.py
+    scripts/change_odom.py scripts/Row_Detection.py
     DESTINATION lib/${PROJECT_NAME})
 
 install(DIRECTORY launch
