@@ -6,7 +6,9 @@ from nav_msgs.msg import Odometry
 from visualization_msgs.msg import Marker
 from geometry_msgs.msg import Point
 from std_msgs.msg import Header
-from tf_transformations import euler_from_quaternion
+import math
+from tf2_geometry_msgs import PoseStamped
+import tf2_ros
 import numpy as np
 import csv
 import os
@@ -46,7 +48,11 @@ class GlobalToLocalOdometryNode(Node):
                 for item in data:
                     writer.writerow([item])
         self.get_logger().info(f"List saved to {file_path}")
-
+    def quaternion_to_yaw(self,quaternion):
+        # Manually compute yaw if necessary
+        x, y, z, w = quaternion
+        yaw = math.atan2(2.0 * (w * z + x * y), 1.0 - 2.0 * (y**2 + z**2))
+        return yaw
     def odom_position_callback(self, msg):
         cluster_marker = Marker()
         cluster_marker.header = Header()
@@ -73,7 +79,7 @@ class GlobalToLocalOdometryNode(Node):
                 msg.pose.pose.orientation.z,
                 msg.pose.pose.orientation.w
             ]
-            _, _, yaw = euler_from_quaternion(quaternion)
+            yaw = self.quaternion_to_yaw(quaternion)
             self.robot_location.append([msg.pose.pose.position.y, msg.pose.pose.position.x, yaw])
             self.total_distmae.append(np.abs(msg.pose.pose.position.y - 0.381))
 
@@ -93,7 +99,7 @@ class GlobalToLocalOdometryNode(Node):
             for centroids in self.markers:
                 for point in centroids:
                     cluster_marker.points.append(point)
-
+            # print(cluster_marker)
             self.marker_pub.publish(cluster_marker)
 
 

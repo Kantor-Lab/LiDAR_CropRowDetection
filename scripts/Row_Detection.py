@@ -1,4 +1,4 @@
-#!/home/ruijiliu/anaconda3/envs/rapids-24.10/bin/python3
+#!/home/ruijiliu/anaconda3/envs/rapids-23.08/bin/python3
 
 import rclpy
 from rclpy.node import Node
@@ -7,14 +7,16 @@ from visualization_msgs.msg import Marker
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Point, Twist
 from std_msgs.msg import Float32MultiArray, Int32
-from cuml.cluster import KMeans
+
 import numpy as np
 import open3d as o3d
 from collections import deque
-from lidar_rowdetect.srv import PointTurn
+from scipy.spatial.transform import Rotation as R
+# from lidar_rowdetect.srv import PointTurn
 import sensor_msgs_py.point_cloud2 as pc2
 import time
-from change_odom import save_list_to_csv
+# from change_odom import save_list_to_csv
+from cuml.cluster import KMeans
 
 # Initialize global variables
 time_to_stop = 0
@@ -57,13 +59,14 @@ class LidarProcessingNode(Node):
         # Subscribers
         self.create_subscription(Odometry, "/odometry/filtered", self.odometry_callback, 1)
         self.create_subscription(PointCloud2, "/points_above_plane", self.lidar_callback, 1)
-        
+        print("here")
         # Service Client
-        self.service_client = self.create_client(PointTurn, "point_turn")
+        # self.service_client = self.create_client(PointTurn, "point_turn")
 
         self.declare_parameter('tilt_angle', 0.7)
 
     def odometry_callback(self, msg):
+        print("here in odom")
         global initial_orientation, initial_position, robot_position, robot_orientation, orientation_history, j
         orientation_history.append(msg.pose.pose.orientation)
         if initial_orientation is None:
@@ -77,20 +80,35 @@ class LidarProcessingNode(Node):
             robot_orientation = msg.pose.pose.orientation
 
     def lidar_callback(self, msg):
+        
         global robot_position, robot_orientation, initial_orientation, initial_position, time_to_stop, mode, switched_line
         global swiped_lines, left_turn, line_fitting
 
         if robot_position is None or robot_orientation is None or initial_orientation is None or initial_position is None:
             return
-
+        print("here in lidar")
         temp_robot_position = robot_position
         temp_robot_orientation = robot_orientation
         temp_initial_orientation = initial_orientation
         initial_rotation_matrix = self.quaternion_to_rotation_matrix([robot_orientation.x, robot_orientation.y, robot_orientation.z, robot_orientation.w])
         self.mode_pub.publish(Int32(data=mode))
         ranges = [(0, 2.4)]
+
+        # pc_data = np.array(list(pc2.read_points(msg, field_names=("x", "y", "z"), skip_nans=False)))
+        # pc_array = np.zeros((len(pc_data), 3))
+        # for i, point in enumerate(pc_data):
+        #     pc_array[i][0] = pc_data[i][0]
+        #     pc_array[i][1] = pc_data[i][1]
+        #     pc_array[i][2] = pc_data[i][2]
+        # pc_array = np.array(list(pc2.read_points(msg, field_names=("x", "y", "z"), skip_nans=False)), dtype=np.float32)
         pc_data = np.array(list(pc2.read_points(msg, field_names=("x", "y", "z"), skip_nans=False)))
-        pc_array = np.array(list(pc_data))
+        pc_array = np.vstack([pc_data['x'], pc_data['y'], pc_data['z']]).T.astype(np.float32)
+
+        # print(pc_array.shape)
+        # print("First 5 rows:", pc_array[:5])
+
+        # Read raw points from the message
+
         if mode == 0 and len(pc_array) < 200:
             if time_to_stop <= 20:
                 time_to_stop += 1
@@ -126,14 +144,16 @@ class LidarProcessingNode(Node):
                 if cluster_marker:
                     self.marker_pub.publish(cluster_marker)
             self.LIST_pub.publish(list_message)
-            self.value_pub.publish(num_clusters)
+            # number_of_cluster = Int32()
+            # number_of_cluster.data = num_clusters
+            self.value_pub.publish(Int32(data=num_clusters))
 
         self.line_fitting_function_pub.publish(Int32(data=line_fitting))
         self.swiped_lines_publisher.publish(Int32(data=swiped_lines))
         self.change_lane_publisher.publish(Int32(data=switched_line))
 
     def calculate_kmeans(self, msg, pc_array,robot_position, robot_orientation, initial_orientation, initial_rotation_matrix):
-        num_clusters =10  # Adjust the number of clusters as needed
+        num_clusters =4  # Adjust the number of clusters as needed
         kmeans = KMeans(n_clusters=num_clusters, n_init= 10, tol = 1e-4, max_iter = 1000, random_state=0).fit(pc_array)
         
         # Get cluster labels for each point
@@ -151,7 +171,7 @@ class LidarProcessingNode(Node):
         else:
             num_clusters = max(set(predicted_centroids[-9:]), key = predicted_centroids.count)
         print("most common", num_clusters)
-        
+        print("centroids", centroids)
         cluster_marker = Marker()
         cluster_marker.header = msg.header
         cluster_marker.type = Marker.POINTS
@@ -209,13 +229,13 @@ class LidarProcessingNode(Node):
         global left_centroids_abs
         global right_centroids
         global right_centroids_abs
-        global drone_list
+        # global drone_list
         detection_error = []
 
         for centroids in markers:
             for point in centroids:
                 cluster_marker.points.append(point)
-                drone_list.append([point.x, point.y, point.z])
+        #         drone_list.append([point.x, point.y, point.z])
 
         #### Save detected centroids location       
         # print("drone list", len(drone_list))
@@ -258,7 +278,7 @@ class LidarProcessingNode(Node):
         flat_data = [item for sublist in fitting_centroids for item in sublist]
         list_message = Float32MultiArray(data=flat_data)
         return cluster_marker, list_message, num_clusters
-    def quaternion_to_rotation_matrix(quaternion):
+    def quaternion_to_rotation_matrix(self,quaternion):
         # Convert a Quaternion to a 3x3 rotation matrix
         x, y, z, w = quaternion[0], quaternion[1], quaternion[2], quaternion[3]
 
@@ -269,7 +289,7 @@ class LidarProcessingNode(Node):
         ])
 
         return rotation_matrix
-    def write_points_to_file(points, filename):
+    def write_points_to_file(self,points, filename):
         """Write each point's coordinates to a text file, one per line."""
         with open(filename, 'w') as file:
             for point in points:
@@ -277,7 +297,7 @@ class LidarProcessingNode(Node):
                 file.write(f"{point[0]}, {point[1]}, {point[2]}\n")
                 # file.write(f"{point}\n")
             print(f"Points have been written to {filename}")
-    def kmeans_filter(centroids, threshold):
+    def kmeans_filter(self, centroids, threshold):
         merge = True
         while merge:
             new_centroids = []
