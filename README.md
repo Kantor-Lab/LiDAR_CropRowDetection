@@ -3,7 +3,7 @@
 ## ROS2 Humble example
 check [here] for the subscriber, publisher, Node initialization example
 
-check [here] for the msg and srv example
+check [here](https://github.com/Ruiji-Liu/robot_interfaces)  for the msg and srv example
 ## Setting up the package
 Download and set up the [ros2 humble](https://docs.ros.org/en/humble/Installation.html) first.
 ### Other Required Packages
