@@ -4,7 +4,7 @@
 check [here] for the subscriber, publisher, Node initialization example
 
 check [here] for the msg and srv example
-## Try it
+## Setting up the package
 Download and set up the [ros2 humble](https://docs.ros.org/en/humble/Installation.html) first.
 ### Other Required Packages
 [Cuml Package](https://docs.rapids.ai/install)  (Recommend install it in conda environments)  
