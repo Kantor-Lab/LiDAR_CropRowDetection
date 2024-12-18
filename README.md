@@ -20,5 +20,4 @@ cd ~/amiga_ws && colcon build
 ```
 ros2 launch lidar_rowdetect Lidar_RowDetect.launch.py
 ```
-### Check
-Publish velocity message to /cmd_vel, the Amiga robot should move.
+
