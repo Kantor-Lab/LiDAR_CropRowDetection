@@ -16,9 +16,9 @@ cd amiga_ws/src
 git clone -b ros2-humble https://github.com/Kantor-Lab/LiDAR_CropRowDetection.git
 cd ~/amiga_ws && colcon build
 ```
-### Launch the world
+### Launch the package
 ```
-ros2 launch amiga_gazebo amiga_playen.launch.py
+ros2 launch lidar_rowdetect Lidar_RowDetect.launch.py
 ```
 ### Check
 Publish velocity message to /cmd_vel, the Amiga robot should move.
