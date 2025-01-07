@@ -5,7 +5,7 @@ check [here] for the subscriber, publisher, Node initialization example
 
 check [here](https://github.com/Ruiji-Liu/robot_interfaces)  for the msg and srv example
 ## Setting up the package
-Download and set up the [ros2 humble](https://docs.ros.org/en/humble/Installation.html) first.
+Download and set up the Ubuntu 22.04 and [ros2 humble](https://docs.ros.org/en/humble/Installation.html) first.
 ### Other Required Packages
 [Cuml Package](https://docs.rapids.ai/install)  (Recommend install it in conda environments)  
 [Amiga simulation environments](https://github.com/Kantor-Lab/Amiga_Simulation-Environments/tree/ros2-humble) 
