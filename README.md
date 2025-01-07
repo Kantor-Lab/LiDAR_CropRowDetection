@@ -8,7 +8,7 @@ check [here](https://github.com/Ruiji-Liu/robot_interfaces)  for the msg and srv
 Download and set up the [ros2 humble](https://docs.ros.org/en/humble/Installation.html) first.
 ### Other Required Packages
 [Cuml Package](https://docs.rapids.ai/install)  (Recommend install it in conda environments)  
-[Amiga simulation environments](https://github.com/Kantor-Lab/Amiga_Simulation-Environments.git) 
+[Amiga simulation environments](https://github.com/Kantor-Lab/Amiga_Simulation-Environments/tree/ros2-humble) 
 ### Install the package
 ```
 mkdir -p amiga_ws/src
