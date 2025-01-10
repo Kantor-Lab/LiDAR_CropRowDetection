@@ -73,6 +73,7 @@ class LidarProcessingNode(Node):
         # Call the service and handle the response asynchronously
         future = self.service_client.call_async(request)
         future.add_done_callback(self.service_response_callback)
+        
     def service_response_callback(self, future):
         try:
             response = future.result()
