@@ -60,11 +60,29 @@ class LidarProcessingNode(Node):
         self.create_subscription(Odometry, "/odometry/filtered", self.odometry_callback, 1)
         self.create_subscription(PointCloud2, "/points_above_plane", self.lidar_callback, 1)
         print("here")
-        # Service Client
-        # self.service_client = self.create_client(PointTurn, "point_turn")
-
         self.declare_parameter('tilt_angle', 0.7)
+        
+        # Service Client
+        self.service_client = self.create_client(PointTurn, "point_turn")
 
+    def send_service_request(self, left_turn):
+        # Create a service request object
+        request = PointTurn.Request()
+        request.left = left_turn
+
+        # Call the service and handle the response asynchronously
+        future = self.service_client.call_async(request)
+        future.add_done_callback(self.service_response_callback)
+    def service_response_callback(self, future):
+        try:
+            response = future.result()
+            if response.success:
+                self.get_logger().info(f"Service call succeeded: {response}")
+            else:
+                self.get_logger().info("Service call failed")
+        except Exception as e:
+            self.get_logger().error(f"Service call failed with exception: {e}")
+            
     def odometry_callback(self, msg):
         print("here in odom")
         global initial_orientation, initial_position, robot_position, robot_orientation, orientation_history, j
@@ -78,7 +96,6 @@ class LidarProcessingNode(Node):
         else:
             robot_position = msg.pose.pose.position
             robot_orientation = msg.pose.pose.orientation
-
     def lidar_callback(self, msg):
         
         global robot_position, robot_orientation, initial_orientation, initial_position, time_to_stop, mode, switched_line
@@ -118,9 +135,13 @@ class LidarProcessingNode(Node):
                 mode = 1
                 pass
         elif mode == 1 or mode == 2:
-            # service_request = PointTurn_Request()
-            service_response = self.service_client(left_turn)
-            self.get_logger().info(f"Service called with left={left_turn}. Response: {service_response}")
+            # Create a service request object
+            request = PointTurn.Request()
+            request.left = left_turn
+    
+            # Call the service and handle the response asynchronously
+            future = self.service_client.call_async(request)
+            future.add_done_callback(self.service_response_callback)
             if service_response:
                 mode = 0
                 switched_line = 1
