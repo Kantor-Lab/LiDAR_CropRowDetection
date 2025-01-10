@@ -56,7 +56,18 @@ class RobotController(Node):
         # Define the service
         self.service = self.create_service(PointTurn, 'point_turn', self.handle_point_turn)
         self.get_logger().info("PointTurn service is ready.")
-
+        
+    def handle_point_turn(self, request, response):
+        # Launch the `run()` operation in a separate thread to avoid blocking
+        self.i = 0
+        self.j = 0
+        thread = threading.Thread(target=self.run, args=(request.left,))
+        thread.start()
+        
+        # Respond immediately to the service request
+        response.success = True
+        return response
+        
     def quaternion_to_yaw(self, quaternion):
         # Manually compute yaw if necessary
         x, y, z, w = quaternion
@@ -143,16 +154,7 @@ class RobotController(Node):
             self.rotate(-math.pi)  # Rotate another 90 degrees to the right
             time.sleep(1)
 
-    def handle_point_turn(self, request, response):
-        # Launch the `run()` operation in a separate thread to avoid blocking
-        self.i = 0
-        self.j = 0
-        thread = threading.Thread(target=self.run, args=(request.left,))
-        thread.start()
-        
-        # Respond immediately to the service request
-        response.success = True
-        return response
+    
 
 
 def main(args=None):
