@@ -58,6 +58,7 @@ class GlobalToLocalOdometryNode(Node):
         cluster_marker.header = Header()
         cluster_marker.header.stamp = self.get_clock().now().to_msg()
         cluster_marker.header.frame_id = "velodyne"
+        # cluster_marker.header.frame_id = "odom"
         cluster_marker.type = Marker.POINTS
         cluster_marker.action = Marker.ADD
         cluster_marker.scale.x = 0.2

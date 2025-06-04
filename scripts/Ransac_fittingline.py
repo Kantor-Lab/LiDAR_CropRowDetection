@@ -18,21 +18,6 @@ import math
 from rclpy.time import Time
 # from change_odom import save_list_to_csv  # Ensure this is ROS 2 compatible
 
-# angle_error = []
-# fitting_centroids = None
-
-# global_robot_position = None
-# i = 1
-# initial_position = None
-# initial_orientation = None
-# robot_orientation = None
-# mode = None
-# line_fitting = None
-# swiped_lines = None
-# total_mae = []
-# total_std = []
-# total_rmse = []
-# max_value = 0
 
 
 def quaternion_to_rotation_matrix(quaternion):
@@ -84,6 +69,7 @@ class LineFittingNode(Node):
         self.max_value = 0
 
     def odom_callback(self, msg):
+        self.get_logger().info("In the odom callback")
         """Process Odometry messages to determine robot's current position and orientation."""
         if self.i == 1:
             self.initial_position = msg.pose.pose.position
@@ -117,6 +103,7 @@ class LineFittingNode(Node):
     def publish_lines_callback(self, msg):
         """Logic for line processing, robot behavior, and visualization."""
         # Initialize visualization marker
+        self.get_logger().info("In the publish lines callback")
         line_marker = Marker()
         line_marker.header.frame_id = 'velodyne'
         line_marker.type = Marker.LINE_LIST
@@ -160,66 +147,66 @@ class LineFittingNode(Node):
             T = np.array([robot_position.x, robot_position.y, robot_position.z])
 
             # Handle swiped_lines logic
-            if self.swiped_lines and self.swiped_lines % 2 == 1:
-                left_x1 = self.global_to_local(self.fitting_centroids[-2:][1], T, now_rotation)[0]
-                left_y1 = self.fitting_centroids[-2:][1][1] - robot_position.y
-                left_x2 = 0.0
-                left_y2 = self.fitting_centroids[-2:][1][1] - robot_position.y
+            # if self.swiped_lines and self.swiped_lines % 2 == 1:
+            left_x1 = self.global_to_local(self.fitting_centroids[-2:][1], T, now_rotation)[0]
+            left_y1 = self.fitting_centroids[-2:][1][1] - robot_position.y
+            left_x2 = 0.0
+            left_y2 = self.fitting_centroids[-2:][1][1] - robot_position.y
 
-                right_x1 = self.global_to_local(self.fitting_centroids[-2:][0], T, now_rotation)[0]
-                right_x2 = 0.0
-                right_y1 = self.fitting_centroids[-2:][0][1] - robot_position.y
-                right_y2 = self.fitting_centroids[-2:][0][1] - robot_position.y
+            right_x1 = self.global_to_local(self.fitting_centroids[-2:][0], T, now_rotation)[0]
+            right_x2 = 0.0
+            right_y1 = self.fitting_centroids[-2:][0][1] - robot_position.y
+            right_y2 = self.fitting_centroids[-2:][0][1] - robot_position.y
 
-                # Determine minimal line index checks
-                min_left = 0.1
-                min_right = 0.1
-                min_left_index = None
-                min_right_index = None
-                for i in range(0, len(self.fitting_centroids) - 1, 2):
-                    local_left_x = self.global_to_local(self.fitting_centroids[i + 1], T, now_rotation)[0]
-                    local_right_x = self.global_to_local(self.fitting_centroids[i], T, now_rotation)[0]
+            # Determine minimal line index checks
+            min_left = 0.1
+            min_right = 0.1
+            min_left_index = None
+            min_right_index = None
+            for i in range(0, len(self.fitting_centroids) - 1, 2):
+                local_left_x = self.global_to_local(self.fitting_centroids[i + 1], T, now_rotation)[0]
+                local_right_x = self.global_to_local(self.fitting_centroids[i], T, now_rotation)[0]
 
-                    if 0.0 < local_left_x < min_left:
-                        min_left_index = i + 1
-                        min_left = local_left_x
-                        left_x2 = local_left_x
+                if 0.0 < local_left_x < min_left:
+                    min_left_index = i + 1
+                    min_left = local_left_x
+                    left_x2 = local_left_x
 
-                    if 0.0 < local_right_x < min_right:
-                        min_right_index = i
-                        min_right = local_right_x
-                        right_x2 = local_right_x
-                if not min_left_index and not min_right_index:
-                    self.get_logger().info("Moving straight...")
-                    vel_msg = Twist()
-                    vel_msg.linear.x = 0.2
-                    self.cmd_vel_pub.publish(vel_msg)
+                if 0.0 < local_right_x < min_right:
+                    min_right_index = i
+                    min_right = local_right_x
+                    right_x2 = local_right_x
+            if not min_left_index and not min_right_index:
+                self.get_logger().info("Moving straight...")
+                vel_msg = Twist()
+                vel_msg.linear.x = 0.2
+                self.cmd_vel_pub.publish(vel_msg)
 
-                if min_left_index:
-                    self.get_logger().info("Left side detected.")
-                    left_line_centroids = [self.fitting_centroids[idx] for idx in range(min_left_index, len(self.fitting_centroids), 2)]
-                    left_line_centroids = sorted(left_line_centroids, key=lambda x: x[0])
-                    if len(left_line_centroids) > 5:
-                        reg_left, m_left, b_left = self.Ransac_line_fit(left_line_centroids)
-                        self.publish_fitting_line(left_line_centroids, reg_left, line_marker)
-                    left_x1 = np.mean([self.global_to_local(point, T, now_rotation)[0] for point in left_line_centroids[-20:]], axis=0)
-                    left_y1 = left_line_centroids[-1][1] - robot_position.y
-                    left_y2 = left_line_centroids[0][1] - robot_position.y
-                    # left_y1 = reg_left.predict(np.array(left_x1).reshape(-1,1))[0]- robot_position.y
-                    # left_y2 = reg_left.predict(np.array(left_x2).reshape(-1,1))[0]- robot_position.y
-                if min_right_index:
-                    self.get_logger().info("Right side detected.")
-                    right_line_centroids = [self.fitting_centroids[idx] for idx in range(min_right_index, len(self.fitting_centroids), 2)]
-                    right_line_centroids = sorted(right_line_centroids, key=lambda x: x[0])
+            if min_left_index:
+                self.get_logger().info("Left side detected.")
+                left_line_centroids = [self.fitting_centroids[idx] for idx in range(min_left_index, len(self.fitting_centroids), 2)]
+                left_line_centroids = sorted(left_line_centroids, key=lambda x: x[0])
+                if len(left_line_centroids) > 5:
+                    reg_left, m_left, b_left = self.Ransac_line_fit(left_line_centroids)
+                    self.publish_fitting_line(left_line_centroids, reg_left, line_marker)
+                left_x1 = np.mean([self.global_to_local(point, T, now_rotation)[0] for point in left_line_centroids[-20:]], axis=0)
+                left_y1 = left_line_centroids[-1][1] - robot_position.y
+                left_y2 = left_line_centroids[0][1] - robot_position.y
+                # left_y1 = reg_left.predict(np.array(left_x1).reshape(-1,1))[0]- robot_position.y
+                # left_y2 = reg_left.predict(np.array(left_x2).reshape(-1,1))[0]- robot_position.y
+            if min_right_index:
+                self.get_logger().info("Right side detected.")
+                right_line_centroids = [self.fitting_centroids[idx] for idx in range(min_right_index, len(self.fitting_centroids), 2)]
+                right_line_centroids = sorted(right_line_centroids, key=lambda x: x[0])
 
-                    if len(right_line_centroids) > 5:
-                        reg_right, m_right, b_right = self.Ransac_line_fit(right_line_centroids)
-                        self.publish_fitting_line(right_line_centroids, reg_right, line_marker)
-                    right_x1 = np.mean([self.global_to_local(point, T, now_rotation)[0] for point in right_line_centroids[-20:]], axis=0)
-                    right_y1 = right_line_centroids[-1][1] - robot_position.y
-                    right_y2 = right_line_centroids[0][1] - robot_position.y
-                    # right_y1 = reg_right.predict(np.array(right_x1).reshape(-1,1))[0]- robot_position.y
-                    # right_y2 = reg_right.predict(np.array(right_x2).reshape(-1,1))[0]- robot_position.y
+                if len(right_line_centroids) > 5:
+                    reg_right, m_right, b_right = self.Ransac_line_fit(right_line_centroids)
+                    self.publish_fitting_line(right_line_centroids, reg_right, line_marker)
+                right_x1 = np.mean([self.global_to_local(point, T, now_rotation)[0] for point in right_line_centroids[-20:]], axis=0)
+                right_y1 = right_line_centroids[-1][1] - robot_position.y
+                right_y2 = right_line_centroids[0][1] - robot_position.y
+                # right_y1 = reg_right.predict(np.array(right_x1).reshape(-1,1))[0]- robot_position.y
+                # right_y2 = reg_right.predict(np.array(right_x2).reshape(-1,1))[0]- robot_position.y
 
             # Publish visualization to RViz
             self.line_pub.publish(line_marker)
@@ -293,12 +280,8 @@ def main():
     # Instantiate and run the node
     node = LineFittingNode()
     try:
-        # node.spin()
         while rclpy.ok():
             node.spin()
-            # print("running code")
-            # node.publish_lines_callback()
-        # print("try")
         
     except KeyboardInterrupt:
         pass

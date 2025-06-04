@@ -47,57 +47,25 @@ class PointTurnClient(Node):
     def __init__(self):
         super().__init__('point_turn_client')
         self.client = self.create_client(PointTurn, 'point_turn')
-        self.response_received = threading.Event()
-
+        self.future = None
+        self.request_in_progress = False
+        
     def send_request(self, left_turn: bool):
-        # Wait for service
-        while not self.client.wait_for_service(timeout_sec=1.0):
-            self.get_logger().info('Service not available, waiting...')
-            if not rclpy.ok():
-                return False
-
-        # Create request
+        # Don't send a new request if one is already in progress
+        if self.request_in_progress:
+            self.get_logger().debug('Service call already in progress')
+            return False
+            
+        # Wait for service to be available
+        if not self.client.wait_for_service(timeout_sec=1.0):
+            self.get_logger().warn('Service not available')
+            return False
+            
         request = PointTurn.Request()
         request.left = left_turn
-        self.get_logger().info(f"Sending point turn request. Left turn: {left_turn}")
-
-        # Send request
-        future = self.client.call_async(request)
-        print("response callback", future.result())
-        # Add callback for when response is received
-        future.add_done_callback(self.response_callback)
-        
-        return future
-
-    def response_callback(self, future):
-        print("response callback")
-        try:
-            response = future.result()
-            if response.success:
-                self.get_logger().info('Point turn completed successfullyy')
-                # self.handle_service_success()
-                global mode, switched_line, swiped_lines, left_turn
-                self.get_logger().info("in success response")
-                mode = 0
-                switched_line = 1
-                swiped_lines += 1
-                left_turn = not left_turn
-                self.get_logger().info(f"mode:{mode}")
-            else:
-                self.get_logger().error('Point turn failed')
-        except Exception as e:
-            self.get_logger().error(f'Service call failed {str(e)}')
-        finally:
-            self.response_received.set()
-    def handle_service_success(self):
-        # Perform actions upon a successful service response
-        global mode, switched_line, swiped_lines, left_turn
-        print("in success response")
-        mode = 0
-        switched_line = 1
-        swiped_lines += 1
-        left_turn = not left_turn
-        print("mode", mode)
+        self.future = self.client.call_async(request)
+        self.request_in_progress = True
+        return True
 class LidarProcessingNode(Node):
     def __init__(self):
         super().__init__('lidar_processing_node')
@@ -118,11 +86,34 @@ class LidarProcessingNode(Node):
         
         # Service Client
         self.service_client = PointTurnClient()
-        self.calling_service = False
-        self.service_client.response_received = threading.Event()
-        self.executor = rclpy.executors.MultiThreadedExecutor()
-        
+        self.service_future = None
+        self.awaiting_service_response = False
+        self.create_timer(0.05, self.check_service_status)
+    def check_service_status(self):
+        """Timer callback to check status of service calls"""
+        global mode, switched_line, swiped_lines, left_turn
+        if not self.service_client.request_in_progress:
+            return
 
+        if self.service_client.future is not None and self.service_client.future.done():
+            try:
+                response = self.service_client.future.result()
+                if response.success:
+                    self.get_logger().info('Point turn completed successfully')
+                    mode = 0
+                    line_fitting = 0
+                    switched_line = 1
+                    swiped_lines += 1
+                    left_turn = not left_turn
+                else:
+                    self.get_logger().error('Point turn failed')
+            except Exception as e:
+                self.get_logger().error(f'Service call failed: {str(e)}')
+            finally:
+                self.service_client.request_in_progress = False
+                self.service_client.future = None
+                self.awaiting_service_response = False
+    
     def odometry_callback(self, msg):
         # print("here in odom")
         global initial_orientation, initial_position, robot_position, robot_orientation, orientation_history, j
@@ -139,7 +130,7 @@ class LidarProcessingNode(Node):
     def call_service_thread(self, left_turn):
         """This method is executed in a separate thread to call the service and wait for the response."""
         self.calling_service = True
-        self.get_logger().info("Sending service request...")
+        # self.get_logger().info("Sending service request...")
 
         # Send request to the service
         future = self.service_client.send_request(left_turn=left_turn)
@@ -150,7 +141,7 @@ class LidarProcessingNode(Node):
         #     self.executor.spin_once()
         # self.executor.spin_once()
         rclpy.spin_until_future_complete(self, future)
-        self.get_logger().info("Service response received.")
+        # self.get_logger().info("Service response received.")
         self.calling_service = False
     def lidar_callback(self, msg):
         
@@ -181,54 +172,31 @@ class LidarProcessingNode(Node):
         # print("First 5 rows:", pc_array[:5])
 
         # Read raw points from the message
-        self.get_logger().info(f"mode:{mode}")
+        # self.get_logger().info(f"mode:{mode}")
         if mode == 0 and len(pc_array) < 200:
             if time_to_stop <= 80:
                 time_to_stop += 1
-                line_fitting
+                # line_fitting
                 pass
             else:
                 mode = 1
                 self.calling_service = True
                 pass
-        elif mode == 1 or mode == 2:
-            # # Create a service request object
-            # request = PointTurn.Request()
-            # request.left = left_turn
-    
-            # # Call the service and handle the response asynchronously
-            # future = self.service_client.call_async(request)
-            # future.add_done_callback(self.service_response_callback)
-            
-            # print("Calling service")
-            # future = self.service_client.send_request(left_turn)
-            # self.service_client.response_received.wait()
-            # print("finished")
-            self.get_logger().info("calling service")
-            if self.calling_service:
-                self.get_logger().info("called service")
-                # self.service_event.clear()  # Reset event for synchronization
-                # self.service_thread = threading.Thread(target=self.call_service_thread, args=(left_turn,))
-                # self.service_thread.start()
-                # self.calling_service = False
-                # if self.calling_service:
-                #     return
-                self.spin_thread = threading.Thread(target=self.call_service_thread, args=(left_turn,))
-                self.spin_thread.start()
 
-                try:
-                    # Wait for the service response asynchronously
-                    # self.call_service_thread
-                    while not self.service_client.response_received.is_set():
-                        # rclpy.spin_once(self)  # Process callbacks without blocking
-                        self.executor.spin_once()
-                finally:
-                    # Clean up: shutdown the node and join the thread
-                    rclpy.shutdown()
-                    self.spin_thread.join()
 
-                # Reset after the service call is complete
-                self.calling_service = False
+        if (mode == 1 or mode == 2) and not self.awaiting_service_response:
+            success = self.service_client.send_request(left_turn)
+            if success:
+                # mode = 0
+                # line_fitting = 0   # <--- add this
+                # time_to_stop = 0   # <--- reset stop counter
+                # switched_line = 1
+                # swiped_lines += 1
+
+                self.awaiting_service_response = True
+                # self.get_logger().info("Service request sent")
+            return
+        
                 # self.spin_thread = threading.Thread(target=rclpy.spin, args=(self.service_client,))
                 # self.spin_thread.start()
 
@@ -259,14 +227,14 @@ class LidarProcessingNode(Node):
             classified_points = {f"Between {r[0]} and {r[1]}": pc_array[(pc_array[:, 0] >= r[0]) & (pc_array[:, 0] < r[1])] for r in ranges}
             start = time.time()
             for key, value in classified_points.items():
-                print(key)
+                # print(key)
                 print(len(value))
                 if len(value) < 100:
                     pass
                 else:
                     cluster_marker, list_message, num_clusters = self.calculate_kmeans(msg, value, temp_robot_position, temp_robot_orientation, temp_initial_orientation, initial_rotation_matrix)
                 end = time.time()
-                print("take time:", end - start)
+                # print("take time:", end - start)
                 if cluster_marker:
                     self.marker_pub.publish(cluster_marker)
             self.LIST_pub.publish(list_message)
@@ -296,8 +264,8 @@ class LidarProcessingNode(Node):
             num_clusters = max(set(predicted_centroids), key = predicted_centroids.count)
         else:
             num_clusters = max(set(predicted_centroids[-9:]), key = predicted_centroids.count)
-        print("most common", num_clusters)
-        print("centroids", centroids)
+        # print("most common", num_clusters)
+        # print("centroids", centroids)
         cluster_marker = Marker()
         cluster_marker.header = msg.header
         cluster_marker.type = Marker.POINTS
@@ -392,9 +360,11 @@ class LidarProcessingNode(Node):
                     closest_elements = [sorted_distances[0][0], last_centroids[1]]
             elif len(sorted_distances) == 0:
                 closest_elements = last_centroids
-            closest_elements = sorted(closest_elements, key=lambda x:x[1])
+            
+            
             
             if closest_elements:
+                closest_elements = sorted(closest_elements, key=lambda x:x[1])
                 # for i in range(len(closest_elements)):
                 for element in closest_elements:
                     # element[1] += robot_position.y
@@ -454,9 +424,18 @@ class LidarProcessingNode(Node):
 def main():
     rclpy.init()
     node = LidarProcessingNode()
-    rclpy.spin(node)
-    node.destroy_node()
-    rclpy.shutdown()
+    executor = rclpy.executors.MultiThreadedExecutor()
+    executor.add_node(node)
+    executor.add_node(node.service_client)
+
+    try:
+        executor.spin()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        executor.shutdown()
+        node.destroy_node()
+        rclpy.shutdown()
 
 
 if __name__ == '__main__':

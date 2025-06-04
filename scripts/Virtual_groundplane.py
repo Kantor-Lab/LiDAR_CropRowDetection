@@ -28,7 +28,7 @@ class LidarPlaneFittingNode(Node):
         x, y, z = np.array([point[0] for point in points]), np.array([point[1] for point in points]), np.array([point[2] for point in points])
         # end = __import__('time').time()
         # print("time:", end - start)
-        above_plane_threshold = 0.02  # Threshold for filtering points above the plane
+        above_plane_threshold = 0.06  # Threshold for filtering points above the plane
 
         # Create a Marker message to visualize the plane (still necessary for visualization)
         plane_marker = self.create_plane_marker(msg, x, y, z)
@@ -36,7 +36,7 @@ class LidarPlaneFittingNode(Node):
 
         # Efficient point filtering
         points_above_plane, points_above_plane_bytes = self.filter_points_above_plane(msg, plane_marker, x, y, z, above_plane_threshold)
-        print("points above plane:", len(points_above_plane))
+        # print("points above plane:", len(points_above_plane))
         # Publish the filtered points
         self.publish_filtered_points(msg, points_above_plane, points_above_plane_bytes)
 
